@@ -80,7 +80,7 @@ impl NftMsgType {
     pub const DESTROY_FLOW_TABLE: Self = Self(32);
     pub const GET_SET_ELEM_RESET: Self = Self(33);
     /// one past the last known type, use to reject unknown message types when parsing
-    pub const MAX: Self = Self(34);
+    const MAX: Self = Self(34);
 
     /// Returns the bare operation number; the low 8 bits of the address.
     /// This does not include the netfilter subsystem identifier.
