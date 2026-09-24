@@ -4,14 +4,14 @@ use std::fmt::Formatter;
 /// The nftables subsystem number, ported from the kernel's nfnetlink.h.
 /// The kernel splits nlmsg_type into "8 bit subsystem, 8 bit operation";
 /// compose the full type as `NFNL_SUBSYS_NFTABLES << 8 | msg`.
-/// See: https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h#L61
+/// See: <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h#L61>
 pub const NFNL_SUBSYS_NFTABLES: u16 = 10;
 
 /// Why a received envelope could not be decoded into a message type.
 ///
 /// The two variants mirror the two rejection guards in the kernel's message
 /// dispatcher: unknown subsystem `nfnetlink_get_subsys` and unknown operation `nfnetlink_find_client`.
-/// See: https://github.com/torvalds/linux/blob/master/net/netfilter/nfnetlink.c#L144-L163
+/// See: <https://github.com/torvalds/linux/blob/master/net/netfilter/nfnetlink.c#L144-L163>
 #[derive(Debug, PartialEq, Eq)]
 pub enum NftMsgTypeError {
     /// The envelope is addressed to a different netfilter subsystem.
@@ -36,9 +36,9 @@ impl fmt::Display for NftMsgTypeError {
 /// Values are positional, verified from the kernel source.
 /// Do not renumber. Do not reorder.
 ///
-/// See: https://github.com/torvalds/linux/blob/cbd2257dc96e3e46217540fcb095a757ffa20d96/include/uapi/linux/netfilter/nf_tables.h#L110
+/// See: <https://github.com/torvalds/linux/blob/cbd2257dc96e3e46217540fcb095a757ffa20d96/include/uapi/linux/netfilter/nf_tables.h#L110>
 ///
-/// See: https://github.com/google/nftables/blob/f9b52ed2ba653815684ff3e19a4d087ff0b87332/types.go#L13
+/// See: <https://github.com/google/nftables/blob/f9b52ed2ba653815684ff3e19a4d087ff0b87332/types.go#L13>
 ///
 /// Naming: kernel abbreviations are expanded to idiomatic Rust
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -98,7 +98,7 @@ impl NftMsgType {
 
     /// The full envelope type field: subsystem << 8 | operation.
     /// Mirrors the kernel's own helper:
-    /// https://github.com/torvalds/linux/blob/master/include/linux/netfilter/nfnetlink.h#L62-L65
+    /// <https://github.com/torvalds/linux/blob/master/include/linux/netfilter/nfnetlink.h#L62-L65>
     /// This is the value that goes into the `nlmsg_type` field of the header.
     /// ##### Examples
     ///
@@ -115,12 +115,12 @@ impl NftMsgType {
     /// Decodes the envelope's type field into a message type — the inverse of [`NftMsgType::header_type`].
     /// The decode formulas are the kernel's own macros `NFNL_SUBSYS_ID` and `NFNL_MSG_TYPE` uapi nfnetlink.h,
     ///
-    /// See: https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h#L46-L47
+    /// See: <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h#L46-L47>
     ///
     /// Both rejection guards mirror the kernel's message dispatcher, which rejects unknown subsystems and unknown operations the same way
-    /// See: https://github.com/torvalds/linux/blob/master/net/netfilter/nfnetlink.c#L144-L163
+    /// See: <https://github.com/torvalds/linux/blob/master/net/netfilter/nfnetlink.c#L144-L163>
     ///
-    /// Also See: https://github.com/google/nftables/blob/master/types.go#L134-L146
+    /// Also See: <https://github.com/google/nftables/blob/master/types.go#L134-L146>
     ///
     /// ##### Examples
     /// ```
