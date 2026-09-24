@@ -210,8 +210,14 @@ mod tests {
     /// 34 (MAX) must be rejected.
     #[test]
     fn max_is_the_reject_boundary() {
-        assert_eq!(NftMsgType::parse_header_type(0x0a21), Ok(NftMsgType::GET_SET_ELEM_RESET));
-        assert_eq!(NftMsgType::parse_header_type(0x0a22), Err(NftMsgTypeError::UnknownType(34)));
+        assert_eq!(
+            NftMsgType::parse_header_type(0x0a21),
+            Ok(NftMsgType::GET_SET_ELEM_RESET)
+        );
+        assert_eq!(
+            NftMsgType::parse_header_type(0x0a22),
+            Err(NftMsgTypeError::UnknownType(34))
+        );
     }
 
     /// External pin, from real kernel output: the NEWGEN reply in the
