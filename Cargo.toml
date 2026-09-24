@@ -5,5 +5,3 @@ edition = "2024"
 description = "a minimal library to interact with linux nftables"
 readme = "README.md"
 license = "MIT"
-
-[dependencies]
