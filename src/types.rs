@@ -20,7 +20,6 @@
 //! `nfnetlink.h` and `nf_tables.h`. Their ordering is part of the kernel ABI and
 //! must not be changed independently of the kernel definitions.
 
-
 use std::fmt;
 use std::fmt::Formatter;
 

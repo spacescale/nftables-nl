@@ -14,7 +14,6 @@
 //! This module is only available on Linux because nftables and
 //! `NETLINK_NETFILTER` are Linux kernel interfaces.
 
-
 use nix::errno::Errno;
 #[cfg(target_os = "linux")]
 use nix::sys::socket::{
@@ -52,7 +51,6 @@ impl std::error::Error for ConnError {}
 pub struct Conn {
     socket: OwnedFd,
 }
-
 
 #[cfg(target_os = "linux")]
 impl Conn {
@@ -92,7 +90,6 @@ impl Conn {
     }
 }
 
-
 #[cfg(all(test, target_os = "linux"))]
 mod test {
     use super::*;
@@ -102,5 +99,4 @@ mod test {
         let conn = Conn::new();
         assert!(conn.is_ok(), "{conn:?}");
     }
-
 }

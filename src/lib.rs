@@ -1,4 +1,4 @@
-pub mod types;
+pub mod chain;
 pub mod conn;
 pub mod table;
-pub mod chain;
+pub mod types;
