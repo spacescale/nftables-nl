@@ -78,7 +78,7 @@ impl Conn {
             SockFlag::SOCK_CLOEXEC, // prevent the socket fd from leaking into exec'd programs
             SockProtocol::NetlinkNetFilter,
         )
-        .map_err(|e| ConnError::Socket(e))?;
+        .map_err(ConnError::Socket)?;
 
         // bind(2): https://man7.org/linux/man-pages/man2/bind.2.html
         //
