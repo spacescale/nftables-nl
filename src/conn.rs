@@ -84,7 +84,7 @@ impl Conn {
         //
         // Binding assigns a local netlink address to this socket.
         // port_id = 0 lets the kernel assign one; groups = 0 subscribes to no multicast groups.
-        bind(fd.as_raw_fd(), &NetlinkAddr::new(0, 0)).map_err(|e| ConnError::Bind(e))?;
+        bind(fd.as_raw_fd(), &NetlinkAddr::new(0, 0)).map_err(ConnError::Bind)?;
 
         Ok(Self { socket: fd })
     }
