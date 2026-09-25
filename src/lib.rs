@@ -7,3 +7,4 @@ pub mod types;
 pub use conn::ConnError;
 #[cfg(target_os = "linux")]
 pub use conn::Conn;
+pub use conn::ConnError;
