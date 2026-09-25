@@ -1,3 +1,26 @@
+//! nftables Netlink message type definitions and header encoding.
+//!
+//! This module defines the nftables Netfilter subsystem identifier and the
+//! operation numbers used in Netlink `nlmsg_type` fields.
+//!
+//! Netfilter splits `nlmsg_type` into two 8-bit components:
+//!
+//! ```text
+//!  15              8 7               0
+//! +-----------------+-----------------+
+//! |    subsystem    |    operation    |
+//! +-----------------+-----------------+
+//! ```
+//!
+//! For nftables, the subsystem is [`NFNL_SUBSYS_NFTABLES`]. [`NftMsgType`]
+//! represents the operation in the low byte and provides helpers for composing
+//! and decoding the complete Netlink message type.
+//!
+//! The numeric values in this module follow the Linux UAPI definitions in
+//! `nfnetlink.h` and `nf_tables.h`. Their ordering is part of the kernel ABI and
+//! must not be changed independently of the kernel definitions.
+
+
 use std::fmt;
 use std::fmt::Formatter;
 
