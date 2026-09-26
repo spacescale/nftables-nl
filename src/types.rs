@@ -5,7 +5,7 @@
 //!
 //! Netfilter splits `nlmsg_type` into two 8-bit components:
 //!
-//! ```text
+//!
 //!  15              8 7               0
 //! +-----------------+-----------------+
 //! |    subsystem    |    operation    |
