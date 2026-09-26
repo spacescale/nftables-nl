@@ -63,6 +63,7 @@ impl fmt::Display for NftMsgTypeError {
 /// See: <https://github.com/google/nftables/blob/f9b52ed2ba653815684ff3e19a4d087ff0b87332/types.go#L13>
 ///
 /// Naming: kernel abbreviations are expanded to idiomatic Rust
+#[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct NftMsgType(u16);
 
