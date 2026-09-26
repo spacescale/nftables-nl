@@ -10,7 +10,7 @@
 //! +-----------------+-----------------+
 //! |    subsystem    |    operation    |
 //! +-----------------+-----------------+
-//! ```
+//!
 //!
 //! For nftables, the subsystem is [`NFNL_SUBSYS_NFTABLES`]. [`NftMsgType`]
 //! represents the operation in the low byte and provides helpers for composing
