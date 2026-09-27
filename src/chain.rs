@@ -65,6 +65,9 @@ impl ChainHook {
 
 /// Priority of a nftables base chain relative to other Netfilter hooks.
 /// See docs: <https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains#Base_chain_priority>
+/// ##### Example
+/// ```
+/// use spacenft::chain::ChainPriority;
 ///
 /// assert!(ChainPriority::RAW.as_raw() < ChainPriority::FILTER.as_raw());
 /// ```
