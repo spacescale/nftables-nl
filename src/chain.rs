@@ -177,7 +177,34 @@ impl ChainPolicy {
         self.0
     }
 }
-
+/// An nftables chain
+///
+/// A base chain is attached to a Netfilter hook and therefore usually has a  hook number and priority. Regular chains
+/// may omit those fields.
+///
+/// ##### Example
+/// ```
+/// use spacenft::chain::{Chain, ChainHook, ChainPolicy, ChainPriority, ChainType};
+/// use spacenft::table::{Table, TableFamily, TableFamily};
+///
+/// let table = Table {
+///     name: "filter".into(),
+///     use_count: 0,
+///     flags: TableFlags::DORMANT,
+///     owner: None,
+///     family: TableFamily::INET
+/// };
+///
+/// let chain = Chain {
+///     name: "input".into(),
+///     table,
+///     hooknum: Some(ChainHook::INPUT),
+///     priority: Some(ChainPriority::FILTER),
+///     chain_type: Some(ChainType::FILTER),
+///     policy: Some(ChainPolicy::ACCEPT),
+///     device: None,
+/// };
+/// ```
 pub struct Chain {
     pub name: String,
     pub table: Table,
