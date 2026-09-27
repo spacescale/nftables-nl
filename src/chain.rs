@@ -2,6 +2,14 @@ use crate::table::Table;
 
 /// Netfilter hook at which a nftables base chain is attached.
 ///
+/// ##### Example
+///
+/// ```
+/// use spacenft::chain::ChainHook;
+///
+/// assert_eq!(ChainHook::PRE_ROUTING.as_raw(), 0);
+/// assert_eq!(ChainHook::INGRESS.as_raw(), 0);
+/// ```
 /// Hook numbers come from the Linux Netfilter UAPI:
 /// <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter.h>
 ///
