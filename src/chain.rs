@@ -66,6 +66,8 @@ impl ChainHook {
 /// Priority of a nftables base chain relative to other Netfilter hooks.
 /// See docs: <https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains#Base_chain_priority>
 ///
+/// assert!(ChainPriority::RAW.as_raw() < ChainPriority::FILTER.as_raw());
+/// ```
 /// These values come from the Linux Netfilter IPv4 UAPI:
 /// <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter_ipv4.h>
 ///
