@@ -183,6 +183,7 @@ pub struct Chain {
     pub table: Table,
     pub hooknum: Option<ChainHook>,
     pub priority: Option<ChainPriority>,
+    pub chain_type: Option<ChainType>,
     pub policy: Option<ChainPolicy>,
     pub device: Option<String>,
 }
