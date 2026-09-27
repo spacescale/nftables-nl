@@ -37,7 +37,7 @@ impl TableFamily {
     }
 }
 
-/// Flags controlling the state and lifetime of an nftables table.
+/// Flags controlling the state and lifetime of a nftables table.
 ///
 /// These values come from the Linux UAPI nftables definitions:
 /// <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nf_tables.h>
