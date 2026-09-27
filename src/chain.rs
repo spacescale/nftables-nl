@@ -95,3 +95,94 @@ impl ChainPriority {
     /// Normal filtering (`NF_IP_PRI_FILTER`).
     pub const FILTER: Self = Self(0);
 
+    /// Security processing (`NF_IP_PRI_SECURITY`).
+    pub const SECURITY: Self = Self(50);
+
+    /// Source NAT (`NF_IP_PRI_NAT_SRC`).
+    pub const NAT_SOURCE: Self = Self(100);
+
+    /// SELinux processing after filtering (`NF_IP_PRI_SELINUX_LAST`).
+    pub const SELINUX_LAST: Self = Self(225);
+
+    /// Connection-tracking helper (`NF_IP_PRI_CONNTRACK_HELPER`).
+    pub const CONNTRACK_HELPER: Self = Self(300);
+
+    /// Connection-tracking confirmation (`NF_IP_PRI_CONNTRACK_CONFIRM`).
+    pub const CONNTRACK_CONFIRM: Self = Self(i32::MAX);
+
+    /// Latest possible priority (`NF_IP_PRI_LAST`).
+    pub const LAST: Self = Self(i32::MAX);
+
+    /// Returns the raw signed priority value.
+    pub const fn as_raw(&self) -> i32 {
+        self.0
+    }
+}
+
+/// Type of an nftables base chain.
+///
+/// See docs: <https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains#Base_chain_types>
+/// The chain type is encoded in the Linux nftables UAPI using the
+/// `NFTA_CHAIN_TYPE` Netlink attribute as an `NLA_NUL_STRING`.
+///
+/// Kernel UAPI:
+/// <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nf_tables.h>
+///
+/// The kernel looks up registered chain types by their string name:
+/// <https://github.com/torvalds/linux/blob/master/net/netfilter/nf_tables_api.c>
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ChainType(&'static str);
+
+impl ChainType {
+    /// Standard packet filtering chain type.
+    pub const FILTER: Self = Self("filter");
+
+    /// Routing chain type.
+    pub const ROUTE: Self = Self("route");
+
+    /// Network address translation chain type.
+    pub const NAT: Self = Self("nat");
+
+    /// Returns the chain type name expected by the Linux nftables UAPI.
+    pub const fn as_str(&self) -> &'static str {
+        self.0
+    }
+}
+
+/// Default policy applied by an nftables base chain.
+///
+/// The policy is encoded in the `NFTA_CHAIN_POLICY` Netlink attribute
+/// as an `NLA_U32`.
+///
+/// Kernel UAPI:
+/// <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nf_tables.h>
+///
+/// The values correspond to Netfilter verdicts:
+/// <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter.h>
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ChainPolicy(u32);
+
+impl ChainPolicy {
+    /// Drop packets that reach the end of the chain without another verdict.
+    /// (`NF_DROP`)
+    pub const DROP: Self = Self(0);
+
+    /// Accept packets that reach the end of the chain without another verdict.
+    /// (`NF_ACCEPT`)
+    pub const ACCEPT: Self = Self(1);
+
+    /// Returns the raw Netfilter verdict value.
+    pub const fn as_raw(&self) -> u32 {
+        self.0
+    }
+}
+
+pub struct Chain {
+    pub name: String,
+    pub table: Table,
+    pub hooknum: Option<ChainHook>,
+    pub priority: Option<ChainPriority>,
+    pub policy: Option<ChainPolicy>,
+    pub device: Option<String>,
+}
