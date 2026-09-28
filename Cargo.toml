@@ -5,6 +5,8 @@ edition = "2024"
 rust-version = "1.98"
 description = "a minimal library to interact with linux nftables"
 readme = "README.md"
+keywords = ["nftables", "netfilter", "firewall"]
+categories = ["os", "network-programming"]
 license = "MIT"
 
 [dependencies]
