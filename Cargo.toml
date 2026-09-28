@@ -8,4 +8,6 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
+netlink-packet-core = "0.9"
+netlink-sys = "0.9"
 nix = { version = "0.31.3", features = ["socket", "net"] }
