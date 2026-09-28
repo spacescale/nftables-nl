@@ -5,7 +5,7 @@ use crate::table::Table;
 /// ##### Example
 ///
 /// ```
-/// use spacenft::chain::ChainHook;
+/// use nftables_nl::chain::ChainHook;
 ///
 /// assert_eq!(ChainHook::PRE_ROUTING.as_raw(), 0);
 /// assert_eq!(ChainHook::INGRESS.as_raw(), 0);
@@ -67,7 +67,7 @@ impl ChainHook {
 /// See docs: <https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains#Base_chain_priority>
 /// ##### Example
 /// ```
-/// use spacenft::chain::ChainPriority;
+/// use nftables_nl::chain::ChainPriority;
 ///
 /// assert!(ChainPriority::RAW.as_raw() < ChainPriority::FILTER.as_raw());
 /// ```
@@ -197,8 +197,8 @@ impl ChainPolicy {
 ///
 /// ##### Example
 /// ```
-/// use spacenft::chain::{Chain, ChainHook, ChainPolicy, ChainPriority, ChainType};
-/// use spacenft::table::{Table, TableFamily, TableFamily};
+/// use nftables_nl::chain::{Chain, ChainHook, ChainPolicy, ChainPriority, ChainType};
+/// use nftables_nl::table::{Table, TableFamily, TableFamily};
 ///
 /// let table = Table {
 ///     name: "filter".into(),

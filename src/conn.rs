@@ -22,6 +22,7 @@ use nix::sys::socket::{
 use std::fmt;
 use std::fmt::Formatter;
 
+use crate::table::{Table, TableFamily};
 #[cfg(target_os = "linux")]
 use std::os::fd::{AsRawFd, OwnedFd};
 
@@ -62,7 +63,7 @@ impl Conn {
     /// ```
     ///
     /// # {
-    /// use spacenft::Conn;
+    /// use nftables_nl::Conn;
     ///
     /// let conn = Conn::new()?;
     /// # let _ = conn;
@@ -87,6 +88,15 @@ impl Conn {
         bind(fd.as_raw_fd(), &NetlinkAddr::new(0, 0)).map_err(ConnError::Bind)?;
 
         Ok(Self { socket: fd })
+    }
+
+    /// Returns all currently configured nftables.
+    pub fn list_tables(&mut self) -> Result<Vec<Table>, ConnError> {
+        self.list_tables_of_family(TableFamily::UNSPEC)
+    }
+
+    pub fn list_tables_of_family(&mut self, family: TableFamily) -> Result<Vec<Table>, ConnError> {
+        todo!()
     }
 }
 

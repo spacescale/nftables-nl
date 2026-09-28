@@ -71,6 +71,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nftables-nl"
+version = "0.1.0"
+dependencies = [
+ "netlink-packet-core",
+ "netlink-sys",
+ "nix",
+]
+
+[[package]]
 name = "nix"
 version = "0.31.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -81,13 +90,4 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "memoffset",
-]
-
-[[package]]
-name = "spacenft"
-version = "0.1.0"
-dependencies = [
- "netlink-packet-core",
- "netlink-sys",
- "nix",
 ]

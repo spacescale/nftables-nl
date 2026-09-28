@@ -111,7 +111,7 @@ impl NftMsgType {
     /// ##### Examples
     ///
     /// ```
-    /// use spacenft::types::NftMsgType;
+    /// use nftables_nl::types::NftMsgType;
     ///
     /// assert_eq!(NftMsgType::NEW_RULE.as_raw(), 6);
     /// ```
@@ -126,7 +126,7 @@ impl NftMsgType {
     /// ##### Examples
     ///
     /// ```
-    /// use spacenft::types::NftMsgType;
+    /// use nftables_nl::types::NftMsgType;
     ///
     /// assert_eq!(NftMsgType::NEW_TABLE.header_type(), 0x0a00);
     /// assert_eq!(NftMsgType::NEW_RULE.header_type(), 0x0a06);
@@ -147,7 +147,7 @@ impl NftMsgType {
     ///
     /// ##### Examples
     /// ```
-    /// use spacenft::types::{NftMsgType, NftMsgTypeError};
+    /// use nftables_nl::types::{NftMsgType, NftMsgTypeError};
     ///
     /// // round trip: decode is the inverse of encode
     /// assert_eq!(
