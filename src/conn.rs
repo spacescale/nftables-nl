@@ -14,24 +14,18 @@
 //! This module is only available on Linux because nftables and
 //! `NETLINK_NETFILTER` are Linux kernel interfaces.
 
-use nix::errno::Errno;
 #[cfg(target_os = "linux")]
-use nix::sys::socket::{
-    AddressFamily, NetlinkAddr, SockFlag, SockProtocol, SockType, bind, socket,
-};
+use netlink_sys::{Socket, protocols::NETLINK_NETFILTER};
 use std::fmt;
 use std::fmt::Formatter;
+use std::io;
 
 use crate::table::{Table, TableFamily};
 #[cfg(target_os = "linux")]
-use std::os::fd::{AsRawFd, OwnedFd};
-
 #[derive(Debug)]
 pub enum ConnError {
-    /// socket(AF_NETLINK, ...) failed.
-    Socket(Errno),
-    /// bind() to the netlink address failed.
-    Bind(Errno),
+    Socket(io::Error),
+    Bind(io::Error),
 }
 
 impl fmt::Display for ConnError {
@@ -43,14 +37,13 @@ impl fmt::Display for ConnError {
     }
 }
 
-// Integrates ConnError with Rust's standard error trait ecosystem
 impl std::error::Error for ConnError {}
 
 /// A netlink connection to the kernel's nftables subsystem.
 #[cfg(target_os = "linux")]
 #[derive(Debug)]
 pub struct Conn {
-    socket: OwnedFd,
+    socket: Socket,
 }
 
 #[cfg(target_os = "linux")]
@@ -71,23 +64,11 @@ impl Conn {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn new() -> Result<Self, ConnError> {
-        // see socket syscall info: <https://man7.org/linux/man-pages/man2/socket.2.html>
-        // see netlink ma7 <https://man7.org/linux/man-pages/man7/netlink.7.html>
-        let fd = socket(
-            AddressFamily::Netlink,
-            SockType::Raw,
-            SockFlag::SOCK_CLOEXEC, // prevent the socket fd from leaking into exec'd programs
-            SockProtocol::NetlinkNetFilter,
-        )
-        .map_err(ConnError::Socket)?;
+        let mut socket = Socket::new(NETLINK_NETFILTER).map_err(ConnError::Socket)?;
 
-        // bind(2): https://man7.org/linux/man-pages/man2/bind.2.html
-        //
-        // Binding assigns a local netlink address to this socket.
-        // port_id = 0 lets the kernel assign one; groups = 0 subscribes to no multicast groups.
-        bind(fd.as_raw_fd(), &NetlinkAddr::new(0, 0)).map_err(ConnError::Bind)?;
+        socket.bind_auto().map_err(ConnError::Bind)?;
 
-        Ok(Self { socket: fd })
+        Ok(Self { socket })
     }
 
     /// Returns all currently configured nftables.
