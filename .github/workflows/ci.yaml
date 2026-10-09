@@ -22,7 +22,7 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check
-            
+
   fmt:
     runs-on: ubuntu-latest
     steps:
