@@ -1,0 +1,11 @@
+# Clippy lint configuration.
+# Levels (warn/deny) live in Cargo.toml under [lints.clippy];
+# this file configures lint behavior.
+
+# Tests may use unwrap() and expect() even though
+# unwrap_used and expect_used are denied in normal code.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+# Tests may use panic!() and unreachable!() for explicit failures.
+allow-panic-in-tests = true
