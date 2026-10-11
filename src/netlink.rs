@@ -39,11 +39,8 @@ pub(crate) fn decode_messages(data: &[u8]) -> Result<Vec<NetlinkMessage<NftMessa
         // It is not computed from the contents; it is a number the kernel
         // wrote there. It counts the WHOLE message: these 4 length bytes,
         // the rest of the header, and the payload.
-        let message_len = u32::from_ne_bytes(
-            remaining[..4]
-                .try_into()
-                .expect("slice length checked above"),
-        ) as usize;
+        let message_len =
+            u32::from_ne_bytes([remaining[0], remaining[1], remaining[2], remaining[3]]) as usize;
 
         // The declared message length must be at least large enough
         // to contain the Netlink header itself.
