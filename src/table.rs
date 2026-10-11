@@ -1,4 +1,120 @@
+use crate::types::{NfGenMsg, NftMessage};
+use netlink_packet_core::{NlasIterator, parse_string, parse_u32_be};
 use std;
+
+#[derive(Debug, thiserror::Error)]
+pub enum TableDecodeError {
+    #[error("short table header: {0} bytes")]
+    ShortHeader(usize),
+
+    #[error("missing table name")]
+    MissingName,
+
+    #[error("invalid attribute: {0}")]
+    Attribute(#[source] netlink_packet_core::DecodeError),
+}
+
+pub struct Table {
+    pub name: String,
+    pub use_count: u32,
+    pub flags: TableFlags,
+    pub owner: Option<u32>,
+    pub family: TableFamily,
+}
+
+impl Table {
+    /// Decodes an nftables table from a Netfilter Netlink message.
+    ///
+    /// Expects the message payload to contain a four-byte `nfgenmsg` header,
+    /// followed by Netlink attributes describing the table.
+    ///
+    /// The table family is extracted from `nfgenmsg`, while the name, flags,
+    /// use count, and optional owner are decoded from `NFTA_TABLE_*` attributes.
+    /// Unrecognized attributes are ignored.
+    ///
+    /// Missing flags and use count default to zero, and an absent owner
+    /// is represented as `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TableDecodeError`] if:
+    /// - The payload is shorter than the `nfgenmsg` header.
+    /// - An attribute is malformed or cannot be decoded.
+    /// - The required `NFTA_TABLE_NAME` attribute is missing.
+    ///
+    /// # References
+    ///
+    /// - [Netfilter generic message header](https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h)
+    /// - [nftables table attributes](https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nf_tables.h)
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    pub(crate) fn from_message(message: &NftMessage) -> Result<Self, TableDecodeError> {
+        let data = &message.data[..];
+
+        // The payload starts with the four-byte nfgenmsg header.
+        if data.len() < NfGenMsg::LEN {
+            return Err(TableDecodeError::ShortHeader(data.len()));
+        }
+
+        // The first byte of nfgenmsg identifies the tables family
+        let family = TableFamily(data[0]);
+
+        let mut name = None;
+        let mut flags = TableFlags(0);
+        let mut use_count = 0;
+        let mut owner = None;
+
+        // attributes begin immediately after nfgenmsg
+        for attribute in NlasIterator::new(&data[NfGenMsg::LEN..]) {
+            let attribute = attribute.map_err(TableDecodeError::Attribute)?;
+
+            // kind returns the attribute type identifier.
+            // see https: <github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nf_tables.h#L207>
+            let kind = attribute.kind();
+            let value = attribute.value();
+
+            // kernel constants and their meaning. this is a summarization from the above link. the kernel nftables UAPI
+            // 1 NFT_TABLE_NAME Table Name
+            // 2 NFTA_TABLE_FLAGS Table Flags
+            // 3 NFT-TABLE_USE Number of Chains
+            // 4 NFTA_TABLE_HANDLE table handle
+            // 7 NFTA-TABLE_OWNER owning netlink portID
+            match kind {
+                1 => {
+                    // NFTA_TABLE_NAME
+                    name = Some(parse_string(value).map_err(TableDecodeError::Attribute)?);
+                }
+
+                2 => {
+                    // NFTA_TABLE_FLAGS
+                    let raw = parse_u32_be(value).map_err(TableDecodeError::Attribute)?;
+                    flags = TableFlags(raw)
+                }
+
+                3 => {
+                    // NFTA_TABLE_USE
+                    use_count = parse_u32_be(value).map_err(TableDecodeError::Attribute)?
+                }
+
+                7 => {
+                    owner = Some(parse_u32_be(value).map_err(TableDecodeError::Attribute)?);
+                }
+
+                // Ignore unsupported attributes.
+                _ => {}
+            }
+        }
+
+        let name = name.ok_or(TableDecodeError::MissingName)?;
+
+        Ok(Self {
+            name,
+            use_count,
+            flags,
+            owner,
+            family,
+        })
+    }
+}
 
 /// Netfilter protocol family used by a nftables table.
 ///
@@ -73,12 +189,4 @@ impl std::ops::BitOr for TableFlags {
     fn bitor(self, rhs: Self) -> Self::Output {
         Self(self.0 | rhs.0)
     }
-}
-
-pub struct Table {
-    pub name: String,
-    pub use_count: u32,
-    pub flags: TableFlags,
-    pub owner: Option<u32>,
-    pub family: TableFamily,
 }

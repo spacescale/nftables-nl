@@ -22,5 +22,7 @@ clone_on_ref_ptr = "deny"
 
 [dependencies]
 netlink-packet-core = "0.9"
-netlink-sys = "0.9"
 thiserror = "2.0.21"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+netlink-sys = "0.9"

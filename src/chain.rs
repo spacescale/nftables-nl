@@ -198,7 +198,7 @@ impl ChainPolicy {
 /// ##### Example
 /// ```
 /// use nftables_nl::chain::{Chain, ChainHook, ChainPolicy, ChainPriority, ChainType};
-/// use nftables_nl::table::{Table, TableFamily, TableFamily};
+/// use nftables_nl::table::{Table, TableFamily, TableFlags};
 ///
 /// let table = Table {
 ///     name: "filter".into(),

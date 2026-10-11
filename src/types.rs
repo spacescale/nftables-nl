@@ -20,8 +20,8 @@
 //! `nfnetlink.h` and `nf_tables.h`. Their ordering is part of the kernel ABI and
 //! must not be changed independently of the kernel definitions.
 
-use std::fmt;
-use std::fmt::Formatter;
+use netlink_packet_core::{NetlinkDeserializable, NetlinkHeader, NetlinkSerializable};
+use std::convert::Infallible;
 
 /// The nftables subsystem number, ported from the kernel's nfnetlink.h.
 /// The kernel splits nlmsg_type into "8 bit subsystem, 8 bit operation";
@@ -34,22 +34,15 @@ pub const NFNL_SUBSYS_NFTABLES: u16 = 10;
 /// The two variants mirror the two rejection guards in the kernel's message
 /// dispatcher: unknown subsystem `nfnetlink_get_subsys` and unknown operation `nfnetlink_find_client`.
 /// See: <https://github.com/torvalds/linux/blob/master/net/netfilter/nfnetlink.c#L144-L163>
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum NftMsgTypeError {
     /// The envelope is addressed to a different netfilter subsystem.
-    /// u8: the subsystem number lives in the high byte of the type field.
+    #[error("not an nftables subsystem: {0}")]
     WrongSubsystem(u8),
-    /// The operation number is not a known nftables message type (>= MAX).
-    UnknownType(u8),
-}
 
-impl fmt::Display for NftMsgTypeError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::WrongSubsystem(s) => write!(f, "not an nftables subsystem: {s}"),
-            Self::UnknownType(m) => write!(f, "unknown nftables message type: {m}"),
-        }
-    }
+    /// The operation number is not a known nftables message type.
+    #[error("unknown nftables message type: {0}")]
+    UnknownType(u8),
 }
 
 /// nftables netlink message types, ported in order from the kernel enum
@@ -178,6 +171,73 @@ impl NftMsgType {
         }
 
         Ok(Self(msg))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NftMessage {
+    pub message_type: u16,
+    pub data: Vec<u8>,
+}
+
+impl NetlinkSerializable for NftMessage {
+    fn message_type(&self) -> u16 {
+        self.message_type
+    }
+
+    fn buffer_len(&self) -> usize {
+        self.data.len()
+    }
+
+    fn serialize(&self, buffer: &mut [u8]) {
+        buffer.copy_from_slice(&self.data)
+    }
+}
+
+impl NetlinkDeserializable for NftMessage {
+    type Error = Infallible;
+
+    fn deserialize(header: &NetlinkHeader, payload: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self {
+            message_type: header.message_type,
+            data: payload.to_vec(),
+        })
+    }
+}
+
+/// Netfilter-specific header carried inside a Netlink message.
+///
+/// Every nfnetlink message starts with this 4-byte header immediately after
+/// the generic Netlink `nlmsghdr`.
+///
+/// Kernel UAPI:
+/// <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h>
+///
+/// ```c
+/// struct nfgenmsg {
+///     __u8   nfgen_family;
+///     __u8   version;
+///     __be16 res_id;
+/// };
+/// ```
+///
+/// For nftables requests:
+/// - `nfgen_family` selects the Netfilter protocol family (`NFPROTO_*`)
+/// - `version` is normally `NFNETLINK_V0` (`0`)
+/// - `res_id` is encoded in big-endian byte order
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NfGenMsg {
+    pub nfgen_family: u8,
+    pub version: u8,
+    pub res_id: u16,
+}
+
+impl NfGenMsg {
+    pub const LEN: usize = 4;
+
+    pub fn encode(&self) -> [u8; Self::LEN] {
+        let res_id = self.res_id.to_be_bytes();
+        [self.nfgen_family, self.version, res_id[0], res_id[1]]
     }
 }
 
