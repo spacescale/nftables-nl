@@ -2,15 +2,25 @@
 name = "nftables-nl"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.98"
-description = "a minimal library to interact with linux nftables"
+rust-version = "1.99"
+description = "a rust minimal library to interact with linux nftables"
 readme = "README.md"
-keywords = ["nftables", "netfilter", "firewall"]
+keywords = ["nftables", "netfilter", "firewall", "iptabes"]
 categories = ["os", "network-programming"]
 license = "MIT"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+unused_self = "warn"
+inefficient_to_string = "warn"
+todo = "deny"
+dbg_macro = "deny"
+enum_glob_use = "deny"
+clone_on_ref_ptr = "deny"
+
 
 [dependencies]
 netlink-packet-core = "0.9"
 netlink-sys = "0.9"
-nix = { version = "0.31.3", features = ["socket", "net"] }
 thiserror = "2.0.21"
