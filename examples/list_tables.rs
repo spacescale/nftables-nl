@@ -1,9 +1,4 @@
 #[cfg(target_os = "linux")]
-use nftables_nl::Conn;
-#[cfg(target_os = "linux")]
-use nftables_nl::TableFamily;
-
-#[cfg(target_os = "linux")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use nftables_nl::Conn;
     use nftables_nl::TableFamily;
