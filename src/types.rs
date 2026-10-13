@@ -310,4 +310,12 @@ mod tests {
     fn values_match_the_strace_capture() {
         assert_eq!(NftMsgType::NEW_GEN.header_type(), 0x0a0f);
     }
+
+    #[test]
+    fn reject_wrong_subsystem() {
+        // High byte: 0x0b = subsystem 11, not nftables (10).
+        // Low byte:  0x06 = a valid operation number.
+        let result = NftMsgType::parse_header_type(0x0b06);
+        assert_eq!(result, Err(NftMsgTypeError::WrongSubsystem(11)))
+    }
 }
