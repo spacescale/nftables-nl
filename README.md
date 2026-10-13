@@ -1,5 +1,4 @@
 [![CI](https://github.com/spacescale/nftables-nl/actions/workflows/ci.yaml/badge.svg)](https://github.com/spacescale/nftables-nl/actions/workflows/ci.yaml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Rust version](https://img.shields.io/badge/rust-1.99%2B-orange)
 ![Platform](https://img.shields.io/badge/platform-Linux-blue)
 
