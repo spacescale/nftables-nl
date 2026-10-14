@@ -318,4 +318,43 @@ mod tests {
         let result = NftMsgType::parse_header_type(0x0b06);
         assert_eq!(result, Err(NftMsgTypeError::WrongSubsystem(11)))
     }
+
+    #[test]
+    fn decode_nft_message_through_netlink() {
+        use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
+
+        // construct the wire bytes independently of our serializer.
+        // netlink header fields use native byte order
+        let mut bytes = Vec::new();
+
+        bytes.extend_from_slice(&20u32.to_ne_bytes()); // complete message length: 16 byte Netlink header and 4 byte payload.
+        bytes.extend_from_slice(&0x0a00u16.to_ne_bytes()); // Header message type: nftables subsystem (10), NEW_TABLE operation (0).
+        bytes.extend_from_slice(&0u16.to_ne_bytes()); // Flags.None
+        bytes.extend_from_slice(&7u32.to_ne_bytes()); // Sequence Number
+        bytes.extend_from_slice(&0u32.to_ne_bytes()); // Port ID.
+
+        // payload nfgenmsg with family 1, version 0, resource ID 0x1234
+        // struct nfgenmsg {
+        //     __u8   nfgen_family;
+        //     __u8   version;
+        //     __be16 res_id;
+        // };
+        // the resource ID uses big endian byte order.
+        let payload = [1, 0, 0x12, 0x34];
+        bytes.extend_from_slice(&payload);
+
+        // call the library complete message decoder.
+        // for this message type, it calls our implementation internally:
+        // NftMessage::deserialize(&decoded_header, payload_bytes).
+        let decoded = NetlinkMessage::<NftMessage>::deserialize(&bytes)
+            .expect("valid netlink message fixture");
+
+        match decoded.payload {
+            NetlinkPayload::InnerMessage(message) => {
+                assert_eq!(message.message_type, 0x0a00);
+                assert_eq!(message.data.as_slice(), payload.as_slice())
+            }
+            other => panic!("expected an nftables inner message, got {other:?}"),
+        }
+    }
 }
