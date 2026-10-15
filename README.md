@@ -11,8 +11,6 @@ nftables-nl can be used to interact with Linux nftables.This library does not wr
 libnftables or its JSON API. This project aims to provide safe idiomatic Rust types and APIs for nftables concepts such
 as tables, chains, rules and sets while keeping the underlying behavior aligned with the Linux kernel interface.
 
-The library is under active development. More documentation and API usage will be added as the implementation matures.
-
 ## Quick start
 
 > Requires Rust 1.99+ and Linux for socket operations. Querying nftables requires `CAP_NET_ADMIN`, typically provided by
