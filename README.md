@@ -34,3 +34,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+## Maintainer
+
+Developed and maintained by [Tobi Ogundiyan](https://github.com/t0gun)
+at [Spacescale Systems](https://github.com/spacescale).
