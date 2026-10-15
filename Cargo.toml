@@ -2,6 +2,8 @@
 name = "nftables-nl"
 version = "0.1.0"
 edition = "2024"
+authors = ["Tobi Ogundiyan <apprentice_py@icloud.com>"]
+repository = "https://github.com/spacescale/nftables-nl"
 rust-version = "1.99"
 description = "a rust minimal library to interact with linux nftables"
 readme = "README.md"
