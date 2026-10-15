@@ -35,7 +35,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Credits
+
+The Netlink crates from the [rust-netlink](https://github.com/rust-netlink) project were used for socket operations.
+The [Google nftables](https://github.com/google/nftables) API was an authoritative resource for modeling the APIs,
+closely alongside the Linux kernel UAPI headers.
+Massive thanks to both projects!
+
 ## Maintainer
 
 Developed and maintained by [Tobi Ogundiyan](https://github.com/t0gun)
 at [Spacescale Systems](https://github.com/spacescale).
+
+## License
+
+nftables-nl is licensed under MIT license. See [License](LICENSE) for more details.
