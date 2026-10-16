@@ -11,7 +11,7 @@
 //! |    subsystem    |    operation    |
 //! +-----------------+-----------------+
 //!
-//!
+//!sr
 //! For nftables, the subsystem is [`NFNL_SUBSYS_NFTABLES`]. [`NftMsgType`]
 //! represents the operation in the low byte and provides helpers for composing
 //! and decoding the complete Netlink message type.
@@ -356,5 +356,54 @@ mod tests {
             }
             other => panic!("expected an nftables inner message, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn serializes_nft_message_through_netlink() {
+        use netlink_packet_core::{NetlinkHeader, NetlinkMessage, NetlinkPayload};
+        let payload = [1, 0, 0x12, 0x34];
+
+        let nft_message = NftMessage {
+            message_type: NftMsgType::GET_TABLE.header_type(), //nftables GET_TABLE.
+            data: payload.to_vec(),
+        };
+
+        let mut header = NetlinkHeader::default();
+        header.sequence_number = 7;
+
+        let mut message = NetlinkMessage::new(header, NetlinkPayload::InnerMessage(nft_message));
+        // Calculate the complete length and copy the payload's message type
+        // into the Netlink header.
+        message.finalize();
+
+        let mut actual = vec![0u8; message.buffer_len()];
+
+        // The library writes the header, then calls u
+        message.serialize(&mut actual);
+
+        // construct the expected bytes independently.
+        // Netlink header fields use native byte order
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&20u32.to_ne_bytes());
+        expected.extend_from_slice(&0x0a01u16.to_ne_bytes());
+        expected.extend_from_slice(&0u16.to_ne_bytes()); // Flags.
+        expected.extend_from_slice(&7u32.to_ne_bytes()); // Sequence number.
+        expected.extend_from_slice(&0u32.to_ne_bytes()); // Port ID.
+        expected.extend_from_slice(&payload); // Payload bytes.
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn encodes_nfgenmsg_in_wire_order() {
+        let message = NfGenMsg {
+            nfgen_family: 1,
+            version: 0,
+            res_id: 0x1234,
+        };
+
+        // Family and version come first.
+        // The two-byte resource ID must use big-endian order.
+        assert_eq!(message.encode(), [1, 0, 0x12, 0x34]);
     }
 }
