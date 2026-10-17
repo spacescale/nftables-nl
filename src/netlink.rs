@@ -119,4 +119,13 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn rejects_truncated_header() {
+        // One byte short of the required 16-byte Netlink header
+        let datagram = [0u8; 15];
+        let result = decode_messages(&datagram);
+
+        assert!(result.is_err(), "a truncated header must be rejected")
+    }
 }
