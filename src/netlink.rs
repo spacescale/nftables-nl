@@ -128,4 +128,31 @@ mod tests {
 
         assert!(result.is_err(), "a truncated header must be rejected")
     }
+
+    #[test]
+    fn rejects_message_length_smaller_than_header() {
+        let mut datagram = [0u8; 16];
+        datagram[..4].copy_from_slice(&12u32.to_ne_bytes());
+
+        let result = decode_messages(&datagram);
+
+        assert!(
+            result.is_err(),
+            "a message cannot be shorter than its own header"
+        );
+    }
+
+    #[test]
+    fn rejects_message_length_exceeding_available_bytes() {
+        // The header claims 24 bytes, but we received only 20.
+        let mut datagram = [0u8; 20];
+        datagram[..4].copy_from_slice(&24u32.to_ne_bytes());
+
+        let result = decode_messages(&datagram);
+
+        assert!(
+            result.is_err(),
+            "a message must fit inside the received bytes",
+        );
+    }
 }
