@@ -190,3 +190,164 @@ impl std::ops::BitOr for TableFlags {
         Self(self.0 | rhs.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_short_header() {
+        // None of these payloads contains a complete four-byte nfgenmsg.
+        for len in 0..4 {
+            let message = NftMessage {
+                message_type: 0x0a00,
+                data: vec![0; len],
+            };
+
+            assert!(matches!(
+                Table::from_message(&message),
+                Err(TableDecodeError::ShortHeader(actual)) if actual == len
+            ));
+        }
+    }
+
+    #[test]
+    fn rejects_missing_name() {
+        // A complete nfgenmsg, but no attributes supplying the required name.
+        let message = NftMessage {
+            message_type: 0x0a00,
+            data: vec![1, 0, 0, 0],
+        };
+
+        assert!(matches!(
+            Table::from_message(&message),
+            Err(TableDecodeError::MissingName)
+        ));
+    }
+
+    #[test]
+    fn rejects_truncated_attribute() {
+        let mut data = vec![1, 0, 0, 0];
+
+        // The name attribute claims eight bytes, but only six are present.
+        data.extend_from_slice(&8u16.to_ne_bytes());
+        data.extend_from_slice(&1u16.to_ne_bytes());
+        data.extend_from_slice(b"a\0");
+
+        let message = NftMessage {
+            message_type: 0x0a00,
+            data,
+        };
+
+        assert!(matches!(
+            Table::from_message(&message),
+            Err(TableDecodeError::Attribute(_))
+        ));
+    }
+
+    #[test]
+    fn rejects_short_numeric_values() {
+        // Flags, use count, and owner each require a four-byte value.
+        for kind in [2u16, 3, 7] {
+            let mut data = vec![1, 0, 0, 0];
+
+            // A valid name ensures a missing name cannot cause the failure.
+            data.extend_from_slice(&8u16.to_ne_bytes());
+            data.extend_from_slice(&1u16.to_ne_bytes());
+            data.extend_from_slice(b"nat\0");
+
+            // Valid attribute framing, but a two-byte numeric value.
+            data.extend_from_slice(&6u16.to_ne_bytes());
+            data.extend_from_slice(&kind.to_ne_bytes());
+            data.extend_from_slice(&[0x12, 0x34]);
+            data.extend_from_slice(&[0, 0]); // Alignment padding, not value bytes.
+
+            let message = NftMessage {
+                message_type: 0x0a00,
+                data,
+            };
+
+            assert!(
+                matches!(
+                    Table::from_message(&message),
+                    Err(TableDecodeError::Attribute(_))
+                ),
+                "attribute {kind} must reject a two-byte value",
+            );
+        }
+    }
+
+    #[test]
+    fn ignores_unknown_attributes_and_defaults_optional_fields() {
+        let mut data = vec![1, 0, 0, 0];
+
+        // An unknown attribute before the name must not stop iteration.
+        data.extend_from_slice(&8u16.to_ne_bytes());
+        data.extend_from_slice(&0x123u16.to_ne_bytes());
+        data.extend_from_slice(&[0xde, 0xad, 0xbe, 0xef]);
+
+        data.extend_from_slice(&8u16.to_ne_bytes());
+        data.extend_from_slice(&1u16.to_ne_bytes());
+        data.extend_from_slice(b"nat\0");
+
+        let message = NftMessage {
+            message_type: 0x0a00,
+            data,
+        };
+
+        let table = Table::from_message(&message).expect("valid name and unknown attribute");
+
+        assert_eq!(table.name, "nat");
+        assert_eq!(table.family, TableFamily::INET);
+        assert_eq!(table.flags.as_raw(), 0);
+        assert_eq!(table.use_count, 0);
+        assert_eq!(table.owner, None);
+    }
+
+    #[test]
+    fn decodes_table_fields() {
+        // nfgenmsg: INET family, version 0, resource ID 0.
+        let mut data = vec![1, 0, 0, 0];
+
+        // Each attribute starts with:
+        // [length: native-endian u16][kind: native-endian u16]
+        // The length includes the four-byte attribute header,
+        // but excludes alignment padding.
+
+        // NFTA_TABLE_NAME = 1.
+        // "filter\0" is 7 bytes, so attribute length is 4 + 7 = 11.
+        data.extend_from_slice(&11u16.to_ne_bytes());
+        data.extend_from_slice(&1u16.to_ne_bytes());
+        data.extend_from_slice(b"filter\0");
+        data.push(0); // One padding byte rounds 11 up to 12.
+
+        // NFTA_TABLE_FLAGS = 2.
+        // Numeric values use big-endian order, unlike attribute headers.
+        data.extend_from_slice(&8u16.to_ne_bytes());
+        data.extend_from_slice(&2u16.to_ne_bytes());
+        data.extend_from_slice(&1u32.to_be_bytes()); // DORMANT.
+
+        // NFTA_TABLE_USE = 3.
+        data.extend_from_slice(&8u16.to_ne_bytes());
+        data.extend_from_slice(&3u16.to_ne_bytes());
+        data.extend_from_slice(&3u32.to_be_bytes()); // Use count.
+
+        // NFTA_TABLE_OWNER = 7.
+        data.extend_from_slice(&8u16.to_ne_bytes());
+        data.extend_from_slice(&7u16.to_ne_bytes());
+        data.extend_from_slice(&0x12345678u32.to_be_bytes());
+
+        let message = NftMessage {
+            message_type: 0x0a00, // nftables NEW_TABLE.
+            data,
+        };
+
+        let table = Table::from_message(&message).expect("valid table payload");
+
+        assert_eq!(table.family, TableFamily::INET);
+        assert_eq!(table.name, "filter");
+        assert_eq!(table.flags, TableFlags::DORMANT);
+        assert_eq!(table.use_count, 3);
+        assert_eq!(table.owner, Some(0x12345678));
+    }
+}
