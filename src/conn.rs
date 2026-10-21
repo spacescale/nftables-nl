@@ -61,6 +61,26 @@ mod linux {
     use netlink_sys::{Socket, SocketAddr, protocols::NETLINK_NETFILTER};
     use std::io;
 
+    /// Socket operations needed for nftables
+    ///
+    /// Production uses a real Socket, Unit tests supplies a fake transport
+    trait Transport {
+        fn send_request(&mut self, bytes: &[u8]) -> io::Result<usize>;
+
+        fn receive_reply(&mut self) -> io::Result<(Vec<u8>, SocketAddr)>;
+    }
+
+    impl Transport for Socket {
+        fn send_request(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            let kernel = SocketAddr::new(0, 0);
+            self.send_to(bytes, &kernel, 0)
+        }
+
+        fn receive_reply(&mut self) -> io::Result<(Vec<u8>, SocketAddr)> {
+            self.recv_from_full()
+        }
+    }
+
     /// A netlink connection to the kernel's nftables subsystem.
     #[derive(Debug)]
     pub struct Conn {
@@ -100,74 +120,76 @@ mod linux {
             &mut self,
             family: TableFamily,
         ) -> Result<Vec<Table>, ConnError> {
-            let nfgen = NfGenMsg {
-                nfgen_family: family.as_raw(),
-                version: 0,
-                res_id: 0,
-            };
+            list_tables_with_transport(&mut self.socket, family)
+        }
+    }
 
-            let payload = NftMessage {
-                message_type: NftMsgType::GET_TABLE.header_type(),
-                data: nfgen.encode().to_vec(),
-            };
+    /// Runs the same listing workflow with either a real or fake transport.
+    fn list_tables_with_transport(
+        transport: &mut impl Transport,
+        family: TableFamily,
+    ) -> Result<Vec<Table>, ConnError> {
+        let nfgen = NfGenMsg {
+            nfgen_family: family.as_raw(),
+            version: 0,
+            res_id: 0,
+        };
 
-            let mut header = NetlinkHeader::default();
-            header.flags = NLM_F_REQUEST | NLM_F_DUMP;
-            let mut message = NetlinkMessage::new(header, NetlinkPayload::InnerMessage(payload));
+        let payload = NftMessage {
+            message_type: NftMsgType::GET_TABLE.header_type(),
+            data: nfgen.encode().to_vec(),
+        };
 
-            message.finalize(); // copies nft message header into the netlink header struct header field
+        let mut header = NetlinkHeader::default();
+        header.flags = NLM_F_REQUEST | NLM_F_DUMP;
+        let mut message = NetlinkMessage::new(header, NetlinkPayload::InnerMessage(payload));
 
-            // magic where header type is copied into the netlink header
-            let mut buf = vec![0u8; message.buffer_len()];
-            message.serialize(&mut buf[..]);
+        message.finalize(); // copies nft message header into the netlink header struct header field
 
-            let kernel = SocketAddr::new(0, 0);
-            self.socket
-                .send_to(&buf, &kernel, 0)
-                .map_err(ConnError::Send)?;
+        // magic where header type is copied into the netlink header
+        let mut buf = vec![0u8; message.buffer_len()];
+        message.serialize(&mut buf[..]);
 
-            let mut tables = Vec::new();
+        // Production sends through Socket; tests can record these bytes.
+        transport.send_request(&buf).map_err(ConnError::Send)?;
 
-            // Outer loop: receive datagrams until the kernel says the dump is done.
-            loop {
-                let (reply, _) = self.socket.recv_from_full().map_err(ConnError::Recv)?;
-                let messages = decode_messages(&reply).map_err(ConnError::Decode)?;
-                for message in messages {
-                    // Check the reply header before handling its payload.
-                    if message.header.flags & NLM_F_DUMP_INTR != 0 {
-                        return Err(ConnError::DumpInterrupted);
+        let mut tables = Vec::new();
+
+        // Outer loop: receive datagrams until the kernel says the dump is done.
+        loop {
+            let (reply, _) = transport.receive_reply().map_err(ConnError::Recv)?;
+            let messages = decode_messages(&reply).map_err(ConnError::Decode)?;
+            for message in messages {
+                // Check the reply header before handling its payload.
+                if message.header.flags & NLM_F_DUMP_INTR != 0 {
+                    return Err(ConnError::DumpInterrupted);
+                }
+
+                match message.payload {
+                    NetlinkPayload::InnerMessage(nft_message) => {
+                        // kernel treats all retuned table as new table
+                        if nft_message.message_type != NftMsgType::NEW_TABLE.header_type() {
+                            return Err(ConnError::UnexpectedMessageType(nft_message.message_type));
+                        }
+
+                        let table = Table::from_message(&nft_message)?;
+                        tables.push(table);
                     }
 
-                    match message.payload {
-                        NetlinkPayload::InnerMessage(nft_message) => {
-                            // kernel treats all retuned table as new table
-                            if nft_message.message_type != NftMsgType::NEW_TABLE.header_type() {
-                                return Err(ConnError::UnexpectedMessageType(
-                                    nft_message.message_type,
-                                ));
-                            }
+                    NetlinkPayload::Done(done) if done.code == 0 => return Ok(tables),
 
-                            let table = Table::from_message(&nft_message)?;
-                            tables.push(table);
-                        }
+                    NetlinkPayload::Overrun(_) => return Err(ConnError::Overrun),
 
-                        NetlinkPayload::Done(done) if done.code == 0 => return Ok(tables),
-
-                        NetlinkPayload::Overrun(_) => return Err(ConnError::Overrun),
-
-                        // other exit code should fail
-                        NetlinkPayload::Done(done) => {
-                            return Err(ConnError::Kernel(io::Error::from_raw_os_error(
-                                -done.code,
-                            )));
-                        }
-
-                        NetlinkPayload::Error(error) if error.code.is_some() => {
-                            return Err(ConnError::Kernel(error.to_io()));
-                        }
-
-                        _ => {}
+                    // other exit code should fail
+                    NetlinkPayload::Done(done) => {
+                        return Err(ConnError::Kernel(io::Error::from_raw_os_error(-done.code)));
                     }
+
+                    NetlinkPayload::Error(error) if error.code.is_some() => {
+                        return Err(ConnError::Kernel(error.to_io()));
+                    }
+
+                    _ => {}
                 }
             }
         }
@@ -176,11 +198,85 @@ mod linux {
     #[cfg(test)]
     mod test {
         use super::*;
+        use std::collections::VecDeque;
+
+        #[derive(Default)]
+        struct FakeTransport {
+            // Requests sent by the workflow, saved so tests can inspect them
+            sent_requests: Vec<Vec<u8>>,
+
+            // Each receive calls removes and returns the next prepared result
+            replies: VecDeque<io::Result<(Vec<u8>, SocketAddr)>>,
+        }
+
+        impl Transport for FakeTransport {
+            fn send_request(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                // Record  the request instead of sending anything to the kernel
+                self.sent_requests.push(bytes.to_vec());
+
+                // Simulate the socket accepting all request bytes.
+                Ok(bytes.len())
+            }
+
+            fn receive_reply(&mut self) -> io::Result<(Vec<u8>, SocketAddr)> {
+                // Return the next prepared datagram or I/O error.
+                // An unexpected receive fails the test instead of waiting forever.
+                self.replies
+                    .pop_front()
+                    .expect("workflow received more times than the test expected")
+            }
+        }
 
         #[test]
         fn open_and_bind() {
             let conn = Conn::new();
             assert!(conn.is_ok(), "{conn:?}");
+        }
+
+        #[test]
+        fn request_inet_tables_and_finish_on_empty_dump() {
+            // Construct a successful NLMSG_DONE reply:
+            // 16-byte Netlink header + 4 byte completion code.
+            let mut done = Vec::new();
+            done.extend_from_slice(&20u32.to_ne_bytes()); // Total length.
+            done.extend_from_slice(&3u16.to_ne_bytes()); // NLMSG_DONE = 3.
+            done.extend_from_slice(&2u16.to_ne_bytes()); // NLM_F_MULTI = 2.
+            done.extend_from_slice(&0u32.to_ne_bytes()); // Sequence.
+            done.extend_from_slice(&0u32.to_ne_bytes()); // Port ID.
+            done.extend_from_slice(&0i32.to_ne_bytes()); // Completion code: success.
+
+            let mut fake = FakeTransport::default();
+
+            // The workflow will  receive this one datagram from the kernel address
+            fake.replies.push_back(Ok((done, SocketAddr::new(0, 0))));
+
+            // Executes the same workflow that Conn uses with its real socket
+            let tables = list_tables_with_transport(&mut fake, TableFamily::INET)
+                .expect("empty dump should succeed");
+
+            // Successful completion without table messages produces an empty list
+            assert!(tables.is_empty());
+
+            // the workflow must send exactly one request.
+            assert_eq!(fake.sent_requests.len(), 1);
+
+            // Inspect the actual request generated by the workflow.
+            let request = NetlinkMessage::<NftMessage>::deserialize(&fake.sent_requests[0])
+                .expect("workflow should send a valid Netlink request");
+
+            assert_eq!(request.header.length, 20);
+            assert_eq!(request.header.message_type, 0x0a01); // GET_TABLE.
+            assert_eq!(request.header.flags, NLM_F_REQUEST | NLM_F_DUMP);
+            match request.payload {
+                NetlinkPayload::InnerMessage(message) => {
+                    // nfgenmsg: INET family, version 0, resource ID 0.
+                    assert_eq!(message.data, vec![1, 0, 0, 0]);
+                }
+                other => panic!("expected an nftables request, got {other:?}"),
+            }
+
+            // The prepared Done reply must have been consumed.
+            assert!(fake.replies.is_empty());
         }
     }
 }
