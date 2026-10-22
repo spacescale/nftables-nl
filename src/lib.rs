@@ -5,11 +5,11 @@ mod netlink;
 pub mod table;
 pub mod types;
 
+#[cfg(target_os = "linux")]
 pub mod conn;
 
 #[cfg(target_os = "linux")]
-pub use conn::Conn;
+pub use conn::{Conn, ConnError};
 
 // Cross-platform types
-pub use conn::ConnError;
 pub use table::{Table, TableFamily, TableFlags};

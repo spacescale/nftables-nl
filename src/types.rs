@@ -246,6 +246,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn raw_message_types_exclude_subsystem_bits() {
+        // Operation numbers from the nf_tables_msg_types UAPI enum.
+        // Unlike header_type(), as_raw() must not include subsystem 10.
+        let cases = [
+            (NftMsgType::NEW_TABLE, 0),
+            (NftMsgType::GET_TABLE, 1),
+            (NftMsgType::DELETE_TABLE, 2),
+            (NftMsgType::NEW_RULE, 6),
+            (NftMsgType::NEW_GEN, 15),
+            (NftMsgType::GET_SET_ELEM_RESET, 33),
+        ];
+
+        for (message_type, expected) in cases {
+            assert_eq!(message_type.as_raw(), expected, "{message_type:?}");
+        }
+    }
+
+    #[test]
     fn all_known_types_round_trip() {
         let all = [
             NftMsgType::NEW_TABLE,

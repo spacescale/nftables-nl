@@ -196,6 +196,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn raw_families_match_netfilter_values() {
+        // NFPROTO_* values are not consecutive: preserve the ABI gaps.
+        let cases = [
+            (TableFamily::UNSPEC, 0),
+            (TableFamily::INET, 1),
+            (TableFamily::IPV4, 2),
+            (TableFamily::ARP, 3),
+            (TableFamily::NETDEV, 5),
+            (TableFamily::BRIDGE, 7),
+            (TableFamily::IPV6, 10),
+        ];
+
+        for (family, expected) in cases {
+            assert_eq!(family.as_raw(), expected, "{family:?}");
+        }
+    }
+
+    #[test]
+    fn raw_flags_preserve_individual_and_combined_bits() {
+        assert_eq!(TableFlags::DORMANT.as_raw(), 0x1);
+        assert_eq!(TableFlags::OWNER.as_raw(), 0x2);
+        assert_eq!(TableFlags::PERSIST.as_raw(), 0x4);
+
+        let owned_persistent = TableFlags::OWNER | TableFlags::PERSIST;
+        assert_eq!(owned_persistent.as_raw(), 0x6);
+
+        // Combining a flag with itself must not add another bit.
+        assert_eq!((owned_persistent | TableFlags::OWNER).as_raw(), 0x6);
+        assert_eq!((owned_persistent | TableFlags::DORMANT).as_raw(), 0x7);
+    }
+
+    #[test]
     fn rejects_short_header() {
         // None of these payloads contains a complete four-byte nfgenmsg.
         for len in 0..4 {
