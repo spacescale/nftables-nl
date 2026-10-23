@@ -74,11 +74,11 @@ impl Transport for Socket {
 
 /// A netlink connection to the kernel's nftables subsystem.
 #[derive(Debug)]
-pub struct Conn {
-    socket: Socket,
+pub struct Conn<T = Socket> {
+    transport: T,
 }
 
-impl Conn {
+impl Conn<Socket> {
     /// Opens a NETLINK_NETFILTER socket and binds it, letting the kernel
     /// assign our port ID.
     ///
@@ -99,7 +99,7 @@ impl Conn {
 
         socket.bind_auto().map_err(ConnError::Bind)?;
 
-        Ok(Self { socket })
+        Ok(Self { transport: socket })
     }
 }
 
