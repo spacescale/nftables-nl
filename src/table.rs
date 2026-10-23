@@ -14,6 +14,7 @@ pub enum TableDecodeError {
     Attribute(#[source] netlink_packet_core::DecodeError),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Table {
     pub name: String,
     pub use_count: u32,
@@ -329,11 +330,14 @@ mod tests {
 
         let table = Table::from_message(&message).expect("valid name and unknown attribute");
 
-        assert_eq!(table.name, "nat");
-        assert_eq!(table.family, TableFamily::INET);
-        assert_eq!(table.flags.as_raw(), 0);
-        assert_eq!(table.use_count, 0);
-        assert_eq!(table.owner, None);
+        let expected = Table {
+            name: "nat".into(),
+            use_count: 0,
+            flags: TableFlags(0),
+            owner: None,
+            family: TableFamily::INET,
+        };
+        assert_eq!(table, expected);
     }
 
     #[test]
@@ -376,10 +380,13 @@ mod tests {
 
         let table = Table::from_message(&message).expect("valid table payload");
 
-        assert_eq!(table.family, TableFamily::INET);
-        assert_eq!(table.name, "filter");
-        assert_eq!(table.flags, TableFlags::DORMANT);
-        assert_eq!(table.use_count, 3);
-        assert_eq!(table.owner, Some(0x12345678));
+        let expected = Table {
+            name: "filter".into(),
+            use_count: 3,
+            flags: TableFlags::DORMANT,
+            owner: Some(0x12345678),
+            family: TableFamily::INET,
+        };
+        assert_eq!(table, expected);
     }
 }

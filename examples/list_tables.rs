@@ -6,14 +6,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = Conn::new()?;
 
     for table in conn.list_tables_of_family(TableFamily::INET)? {
-        println!(
-            "name={} family={} flags={} use_count={} owner={:?}",
-            table.name,
-            table.family.as_raw(),
-            table.flags.as_raw(),
-            table.use_count,
-            table.owner
-        )
+        println!("{table:#?}");
     }
 
     Ok(())

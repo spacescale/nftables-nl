@@ -201,6 +201,7 @@ impl ChainPolicy {
 ///     device: None,
 /// };
 /// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chain {
     pub name: String,
     pub table: Table,
