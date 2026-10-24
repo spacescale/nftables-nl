@@ -5,6 +5,7 @@ use std::env;
 use std::process::Command;
 
 /// Run a test body in a child process with its own network namespace/
+#[allow(clippy::expect_used)]
 fn in_network_namespace(test_name: &str, test_body: impl FnOnce()) {
     const CHILD_TEST: &str = "NFTABLES_NL_NAMESPACE_TEST";
 
