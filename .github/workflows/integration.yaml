@@ -1,0 +1,112 @@
+name: Linux integration tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  integration:
+    name: Integration / Linux ${{ matrix.kernel }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # Fixed patch releases on PRs; a moving stable target every Monday.
+        kernel: ${{ fromJSON(github.event_name == 'schedule' && '["latest"]' || '["6.1.190", "6.18.59", "7.0.14"]') }}
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build and VM dependencies on the runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bc bison flex libelf-dev libssl-dev \
+            curl jq xz-utils nftables util-linux coreutils sudo \
+            qemu-system-x86 qemu-guest-agent
+
+      - name: Resolve the kernel version
+        id: kernel
+        env:
+          REQUESTED_KERNEL: ${{ matrix.kernel }}
+        run: |
+          version="$REQUESTED_KERNEL"
+          if [[ "$version" == latest ]]; then
+            curl --fail --silent --show-error --location --retry 3 \
+              https://www.kernel.org/releases.json -o "$RUNNER_TEMP/releases.json"
+            version=$(jq -er '.latest_stable.version' "$RUNNER_TEMP/releases.json")
+          fi
+          # Accept released kernels, not release candidates or arbitrary input.
+          [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Selected Linux $version"
+
+      - name: Restore the compiled kernel
+        id: kernel-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/nftables-kernel
+          key: nftables-kernel-x86_64-ubuntu2404-${{ steps.kernel.outputs.version }}-${{ hashFiles('.github/scripts/build-integration-kernel.sh') }}
+
+      - name: Build the kernel on the runner
+        if: steps.kernel-cache.outputs.cache-hit != 'true'
+        env:
+          KERNEL_VERSION: ${{ steps.kernel.outputs.version }}
+        run: |
+          bash .github/scripts/build-integration-kernel.sh \
+            "$KERNEL_VERSION" "$RUNNER_TEMP/nftables-kernel"
+
+      - name: Install vmtest on the runner
+        run: cargo install vmtest --locked
+
+      - name: Compile integration tests on the runner without running them
+        run: |
+          cargo test --locked --test tables --no-run --message-format=json \
+            > "$RUNNER_TEMP/test-artifacts.json"
+
+          # Cargo reports the executable path as JSON. jq reads that path.
+          executable=$(jq -er -s '
+            [.[] | select(
+              .reason == "compiler-artifact" and
+              .target.name == "tables" and
+              .executable != null
+            ) | .executable]
+            | if length == 1 then .[0]
+              else error("expected exactly one tables test executable") end
+          ' "$RUNNER_TEMP/test-artifacts.json")
+          cp "$executable" target/tables-integration
+
+      - name: Enable hardware acceleration when available
+        run: |
+          if [[ -e /dev/kvm ]]; then
+            sudo chmod a+rw /dev/kvm
+          else
+            echo "KVM unavailable; QEMU will use slower software emulation."
+          fi
+
+      - name: Run only integration tests inside the VM
+        timeout-minutes: 10
+        env:
+          VMTEST_NO_UI: "1"
+        run: |
+          expected=$(cat "$RUNNER_TEMP/nftables-kernel/kernel-release")
+          sudo --preserve-env=RUST_BACKTRACE,VMTEST_NO_UI \
+            timeout --kill-after=10s 8m \
+            "$HOME/.cargo/bin/vmtest" \
+            --kernel "$RUNNER_TEMP/nftables-kernel/bzImage" \
+            "bash '$GITHUB_WORKSPACE/.github/scripts/run-integration-guest.sh' \
+              '$expected' '$GITHUB_WORKSPACE/target/tables-integration'"
