@@ -57,7 +57,7 @@ jobs:
 
       - name: Restore the compiled kernel
         id: kernel-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/nftables-kernel
           key: nftables-kernel-x86_64-ubuntu2404-${{ steps.kernel.outputs.version }}-${{ hashFiles('.github/scripts/build-integration-kernel.sh') }}
