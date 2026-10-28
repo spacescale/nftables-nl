@@ -1,4 +1,5 @@
 [![CI](https://github.com/spacescale/nftables-nl/actions/workflows/ci.yaml/badge.svg)](https://github.com/spacescale/nftables-nl/actions/workflows/ci.yaml)
+[![Coverage](https://codecov.io/gh/spacescale/nftables-nl/branch/main/graph/badge.svg)](https://app.codecov.io/gh/spacescale/nftables-nl)
 ![Rust version](https://img.shields.io/badge/rust-1.99%2B-orange)
 ![Platform](https://img.shields.io/badge/platform-Linux-blue)
 
