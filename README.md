@@ -33,6 +33,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+Integration tests run on GitHub-hosted Ubuntu 24.04 and 26.04 runners on x86-64 and ARM64,
+plus `ubuntu-latest` on x86-64. Tests use GitHub's provided kernels; each CI run logs the
+kernel version, architecture and `nft` version. See the [integration workflow](.github/workflows/integration.yaml).
+
 ## Credits
 
 The Netlink crates from the [rust-netlink](https://github.com/rust-netlink) project were used for socket operations.
