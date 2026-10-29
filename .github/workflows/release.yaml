@@ -1,0 +1,60 @@
+on:
+  release:
+    types: [ published ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crates-io-publish
+  cancel-in-progress: false
+
+
+jobs:
+  publish:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Check release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+        run: |
+          version=$(cargo metadata --locked --no-deps --format-version=1 |
+                      jq -er '.packages[] |
+                        select(.name == "nftables-nl") | .version')
+
+                    if [[ "$RELEASE_TAG" != "v$version" ]]; then
+                      echo "Tag $RELEASE_TAG does not match Cargo.toml version $version."
+                      exit 1
+                    fi
+      - name: Run unit tests
+        run: cargo test --locked --lib
+
+      - name: Run documentation tests
+        run: cargo test --locked --doc
+
+      - name: Verify package
+        run: cargo publish --locked --dry-run
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [[ -z "$CARGO_REGISTRY_TOKEN" ]]; then
+            echo "CARGO_REGISTRY_TOKEN is missing or inaccessible."
+            exit 1
+          fi
+
+          cargo publish --locked
