@@ -17,7 +17,9 @@
 use netlink_sys::{Socket, SocketAddr, protocols::NETLINK_NETFILTER};
 use std::io;
 
+mod batch;
 mod tables;
+pub use batch::Batch;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConnError {
@@ -50,6 +52,9 @@ pub enum ConnError {
 
     #[error("unexpected nftables message type: {0:?}")]
     UnexpectedMessageType(u16),
+
+    #[error("invalid table: {0}")]
+    InvalidTable(&'static str),
 }
 
 /// Socket operations needed for nftables
@@ -76,6 +81,7 @@ impl Transport for Socket {
 #[derive(Debug)]
 pub struct Conn<T = Socket> {
     transport: T,
+    sequence: u32,
 }
 
 impl Conn<Socket> {
@@ -99,7 +105,10 @@ impl Conn<Socket> {
 
         socket.bind_auto().map_err(ConnError::Bind)?;
 
-        Ok(Self { transport: socket })
+        Ok(Self {
+            transport: socket,
+            sequence: 0,
+        })
     }
 }
 

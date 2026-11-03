@@ -9,7 +9,7 @@ pub mod types;
 pub mod conn;
 
 #[cfg(target_os = "linux")]
-pub use conn::{Conn, ConnError};
+pub use conn::{Batch, Conn, ConnError};
 
 // Cross-platform types
 pub use table::{Table, TableFamily, TableFlags};

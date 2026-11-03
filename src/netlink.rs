@@ -39,8 +39,7 @@ pub(crate) fn decode_messages(data: &[u8]) -> Result<Vec<NetlinkMessage<NftMessa
         // It is not computed from the contents; it is a number the kernel
         // wrote there. It counts the WHOLE message: these 4 length bytes,
         // the rest of the header, and the payload.
-        let message_len =
-            u32::from_ne_bytes([remaining[0], remaining[1], remaining[2], remaining[3]]) as usize;
+        let message_len = u32::from_ne_bytes([remaining[0], remaining[1], remaining[2], remaining[3]]) as usize;
 
         // The declared message length must be at least large enough
         // to contain the Netlink header itself.
@@ -102,8 +101,7 @@ mod tests {
         datagram.extend_from_slice(&0u32.to_ne_bytes());
         datagram.extend_from_slice(&[1, 0, 0x12, 0x34]);
 
-        let messages =
-            decode_messages(&datagram).expect("valid datagram with two aligned messages");
+        let messages = decode_messages(&datagram).expect("valid datagram with two aligned messages");
         assert_eq!(messages.len(), 2);
 
         // verify order, message types, and exact payloads
@@ -136,10 +134,7 @@ mod tests {
 
         let result = decode_messages(&datagram);
 
-        assert!(
-            result.is_err(),
-            "a message cannot be shorter than its own header"
-        );
+        assert!(result.is_err(), "a message cannot be shorter than its own header");
     }
 
     #[test]
@@ -150,9 +145,6 @@ mod tests {
 
         let result = decode_messages(&datagram);
 
-        assert!(
-            result.is_err(),
-            "a message must fit inside the received bytes",
-        );
+        assert!(result.is_err(), "a message must fit inside the received bytes",);
     }
 }

@@ -12,9 +12,17 @@ nftables-nl can be used to interact with Linux nftables.This library does not wr
 libnftables or its JSON API. This project aims to provide safe idiomatic Rust types and APIs for nftables concepts such
 as tables, chains, rules and sets while keeping the underlying behavior aligned with the Linux kernel interface.
 
+## Installation
+
+Add the published crate to your project:
+
+```sh
+cargo add nftables-nl@0.1
+```
+
 ## Quick start
 
-> Requires Rust 1.99+ and Linux for socket operations. Querying nftables requires `CAP_NET_ADMIN`, typically provided by
+> Requires Rust 1.99.1+ and Linux for socket operations. Querying and modifying nftables requires `CAP_NET_ADMIN`, typically provided by
 > running the program with sudo
 
 ```rs
@@ -29,6 +37,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for table in tables {
         println!("{}", table.name);
     }
+
+    Ok(())
+}
+```
+
+### Add a table
+
+The batch API below is available on the development branch and is not included in the published `0.1.0` release yet.
+
+Create an inactive INET table using a batch:
+
+```rust
+use nftables_nl::{Conn, Table, TableFamily, TableFlags};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut conn = Conn::new()?;
+    let table = Table {
+        name: "filter".into(),
+        family: TableFamily::INET,
+        flags: TableFlags::DORMANT, // Disable packet processing for this table.
+        use_count: 0,
+        owner: None,
+    };
+
+    let mut batch = conn.batch();
+    batch.add_table(&table)?; // Validate and queue the operation.
+    batch.commit()?;          // Send the transaction and check kernel replies.
 
     Ok(())
 }
