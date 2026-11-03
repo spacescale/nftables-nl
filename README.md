@@ -17,12 +17,13 @@ as tables, chains, rules and sets while keeping the underlying behavior aligned 
 Add the published crate to your project:
 
 ```sh
-cargo add nftables-nl@0.1
+cargo add nftables-nl
 ```
 
 ## Quick start
 
-> Requires Rust 1.99.1+ and Linux for socket operations. Querying and modifying nftables requires `CAP_NET_ADMIN`, typically provided by
+> Requires Rust 1.99.1+ and Linux for socket operations. Querying and modifying nftables requires `CAP_NET_ADMIN`,
+> typically provided by
 > running the program with sudo
 
 ```rs
@@ -44,14 +45,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Add a table
 
-The batch API below is available on the development branch and is not included in the published `0.1.0` release yet.
-
-Create an inactive INET table using a batch:
+Queue an inactive INET table, then commit the batch to apply the change:
 
 ```rust
-use nftables_nl::{Conn, Table, TableFamily, TableFlags};
+use nftables_nl::{Conn, ConnError, Table, TableFamily, TableFlags};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), ConnError> {
     let mut conn = Conn::new()?;
     let table = Table {
         name: "filter".into(),
@@ -69,9 +68,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+For more usage examples, see the [examples directory](examples).
+
 Integration tests run on GitHub-hosted Ubuntu 24.04 and 26.04 runners on x86-64 and ARM64,
-plus `ubuntu-latest` on x86-64. Tests use GitHub's provided kernels; each CI run logs the
+plus `ubuntu-latest` on x86-64. Tests use GitHub's provided kernels. Each CI run logs the
+
 kernel version, architecture and `nft` version. See the [integration workflow](.github/workflows/integration.yaml).
+
+## Contributing
+
+Contributions are welcome! Feel free to [open an issue](https://github.com/spacescale/nftables-nl/issues)
+or [submit a pull request](https://github.com/spacescale/nftables-nl/pulls).
 
 ## Credits
 
