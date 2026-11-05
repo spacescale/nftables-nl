@@ -8,9 +8,11 @@
 //! Commit waits for kernel acknowledgements and reports transport or
 //! kernel errors.
 //!
-//! Dropping a batch without committing discards its queued operation
+//! Dropping a batch without committing discards its queued operations.
+//!
 //! # References
-//! https://wiki.nftables.org/wiki-nftables/index.php/Portal:DeveloperDocs/nftables_internals#Serialization_into_netlink_messages
+//!
+//! - [nftables transaction internals](https://wiki.nftables.org/wiki-nftables/index.php/Portal:DeveloperDocs/nftables_internals#Serialization_into_netlink_messages)
 
 use crate::conn::Transport;
 use crate::netlink::decode_messages;

@@ -52,6 +52,7 @@ fn test_table(name: &str, family: TableFamily) -> Table {
 }
 
 // Runs nft inside the test's isolated network namespace.
+#[allow(clippy::expect_used)]
 fn nft(args: &[&str]) -> String {
     let output = Command::new("nft").args(args).output().expect("run nft");
 
