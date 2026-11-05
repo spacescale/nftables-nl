@@ -44,14 +44,18 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
 
   test:
+    name: Test / Rust ${{ matrix.rust }} / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ ubuntu-26.04 ]
+        rust: [ "1.99.1", stable ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --all-targets
       - run: cargo test --doc
