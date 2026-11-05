@@ -23,6 +23,36 @@
 use netlink_packet_core::{NetlinkDeserializable, NetlinkHeader, NetlinkSerializable};
 use std::convert::Infallible;
 
+/// Starts a Netfilter batch transaction.
+///
+/// The kernel defines this as `NLMSG_MIN_TYPE` (0x10), the first
+/// message type after Netlink's reserved generic control messages.
+///
+/// This is a Netfilter control message, not an nftables operation.
+/// Use its value directly as the Netlink header's message type;
+/// do not combine it with `NFNL_SUBSYS_NFTABLES << 8`.
+///
+/// Kernel definitions:
+/// - <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h>
+/// - <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netlink.h>
+pub const NFNL_MSG_BATCH_BEGIN: u16 = 0x10;
+
+/// Ends a Netfilter batch transaction.
+///
+/// The kernel defines this as `NLMSG_MIN_TYPE + 1` (0x11).
+/// It follows the operations belonging to the transaction:
+///
+/// ```text
+/// BATCH_BEGIN → operation → operation → BATCH_END
+/// ```
+///
+/// This is also a direct Netfilter control message type, without
+/// nftables subsystem bits.
+///
+/// Kernel definition:
+/// <https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h>
+pub const NFNL_MSG_BATCH_END: u16 = 0x11;
+
 /// The nftables subsystem number, ported from the kernel's nfnetlink.h.
 /// The kernel splits nlmsg_type into "8 bit subsystem, 8 bit operation";
 /// compose the full type as `NFNL_SUBSYS_NFTABLES << 8 | msg`.
@@ -364,8 +394,7 @@ mod tests {
         // call the library complete message decoder.
         // for this message type, it calls our implementation internally:
         // NftMessage::deserialize(&decoded_header, payload_bytes).
-        let decoded = NetlinkMessage::<NftMessage>::deserialize(&bytes)
-            .expect("valid netlink message fixture");
+        let decoded = NetlinkMessage::<NftMessage>::deserialize(&bytes).expect("valid netlink message fixture");
 
         match decoded.payload {
             NetlinkPayload::InnerMessage(message) => {

@@ -301,10 +301,7 @@ mod tests {
             };
 
             assert!(
-                matches!(
-                    Table::from_message(&message),
-                    Err(TableDecodeError::Attribute(_))
-                ),
+                matches!(Table::from_message(&message), Err(TableDecodeError::Attribute(_))),
                 "attribute {kind} must reject a two-byte value",
             );
         }

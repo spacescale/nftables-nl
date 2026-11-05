@@ -1,5 +1,7 @@
+//! Lists all nftables tables, then lists only INET tables.
+
 #[cfg(target_os = "linux")]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), nftables_nl::ConnError> {
     use nftables_nl::{Conn, TableFamily};
 
     let mut conn = Conn::new()?;
