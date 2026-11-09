@@ -50,4 +50,4 @@ jobs:
 
       - name: Run integration tests
         # Each test creates its own privileged child in a fresh network namespace.
-        run: cargo test --locked --test tables -- --ignored --nocapture
+        run: cargo test --locked --test tables --test chains -- --ignored --nocapture

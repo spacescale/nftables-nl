@@ -25,8 +25,67 @@ const NFTA_HOOK_DEV: u16 = 3;
 impl<'a, T: Transport> Batch<'a, T> {
     /// Queues a chain addition for the next batch commit.
     ///
+    /// Uses the table name and family from `chain.table`. Other table fields are
+    /// ignored. This method does not create the table implicitly.
+    ///
+    /// Regular chains omit the hook, priority, type, policy, and device. Base
+    /// chains supply a hook, priority, and type together, with an optional policy
+    /// and a device where supported. An omitted base-chain policy defaults to
+    /// accept. Existing chains retain their rules; the kernel may reject
+    /// incompatible changes to their configuration.
+    ///
     /// The table must already exist or be queued earlier in this batch.
-    /// Call `commit` to send the transaction and check kernel replies
+    /// Call [`commit`](Self::commit) to send the transaction and check kernel replies.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConnError::InvalidChain`] for empty names, names longer than
+    /// 255 bytes, embedded zero bytes, an unspecified family, incomplete base-chain
+    /// options, or policy/device options on regular chains. Device names must be
+    /// 1 to 15 bytes without embedded zeros. Devices are only supported for NETDEV
+    /// base chains and INET ingress base chains.
+    ///
+    /// Validation errors leave the batch unchanged. Transport and kernel errors,
+    /// including missing tables and unsupported configurations, are reported by
+    /// [`commit`](Self::commit).
+    ///
+    /// # Examples
+    ///
+    /// Create a dormant table and a regular chain in one transaction:
+    ///
+    /// ```no_run
+    /// use nftables_nl::chain::Chain;
+    /// use nftables_nl::{Conn, ConnError, Table, TableFamily, TableFlags};
+    ///
+    /// let mut conn = Conn::new()?;
+    /// let table = Table {
+    ///     name: "filter".into(),
+    ///     family: TableFamily::INET,
+    ///     flags: TableFlags::DORMANT,
+    ///     use_count: 0,
+    ///     owner: None,
+    /// };
+    /// let chain = Chain {
+    ///     name: "services".into(),
+    ///     table: table.clone(),
+    ///     hooknum: None,
+    ///     priority: None,
+    ///     chain_type: None,
+    ///     policy: None,
+    ///     device: None,
+    /// };
+    ///
+    /// let mut batch = conn.batch();
+    /// batch.add_table(&table)?;
+    /// batch.add_chain(&chain)?;
+    /// batch.commit()?;
+    /// # Ok::<(), ConnError>(())
+    /// ```
+    ///
+    /// # References
+    ///
+    /// - [nftables NEWCHAIN request](https://docs.kernel.org/netlink/specs/nftables.html#newchain)
+    /// - [Chain attributes](https://docs.kernel.org/netlink/specs/nftables.html#chain-attrs)
     pub fn add_chain(&mut self, chain: &Chain) -> Result<(), ConnError> {
         // Reject invalid options  before modifying the batch
         validate_chain(chain)?;
