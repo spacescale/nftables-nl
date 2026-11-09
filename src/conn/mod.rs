@@ -18,7 +18,9 @@ use netlink_sys::{Socket, SocketAddr, protocols::NETLINK_NETFILTER};
 use std::io;
 
 mod batch;
+mod chains;
 mod tables;
+
 pub use batch::Batch;
 
 #[derive(Debug, thiserror::Error)]
@@ -55,6 +57,9 @@ pub enum ConnError {
 
     #[error("invalid table: {0}")]
     InvalidTable(&'static str),
+
+    #[error("invalid chain: {0}")]
+    InvalidChain(&'static str),
 }
 
 /// Socket operations needed for nftables

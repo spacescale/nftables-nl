@@ -36,6 +36,9 @@ impl ChainHook {
     /// After routing, before leaving the system.
     pub const POST_ROUTING: Self = Self(4);
 
+    /// Device ingress for the INET family (`NF_INET_INGRESS`).
+    pub const INET_INGRESS: Self = Self(5);
+
     /// Device ingress (`NETDEV` family).
     pub const INGRESS: Self = Self(0);
     /// Device egress (`NETDEV` family).
@@ -175,8 +178,10 @@ impl ChainPolicy {
 }
 /// An nftables chain
 ///
-/// A base chain is attached to a Netfilter hook and therefore usually has a  hook number and priority. Regular chains
-/// may omit those fields.
+/// A base chain is attached to a Netfilter hook and supplies a hook number,
+/// priority, and chain type together. It may also specify a policy and a device
+/// where supported. A regular chain omits all five options and can be entered
+/// through a jump or goto rule from another chain in the same table.
 ///
 /// ##### Example
 /// ```
