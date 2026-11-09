@@ -36,6 +36,9 @@ impl ChainHook {
     /// After routing, before leaving the system.
     pub const POST_ROUTING: Self = Self(4);
 
+    /// Device ingress for the INET family (`NF_INET_INGRESS`).
+    pub const INET_INGRESS: Self = Self(5);
+
     /// Device ingress (`NETDEV` family).
     pub const INGRESS: Self = Self(0);
     /// Device egress (`NETDEV` family).
