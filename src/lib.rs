@@ -9,6 +9,9 @@ pub mod types;
 pub mod conn;
 
 #[cfg(target_os = "linux")]
+pub mod rule;
+
+#[cfg(target_os = "linux")]
 pub use conn::{Batch, Conn, ConnError};
 
 // Cross-platform types

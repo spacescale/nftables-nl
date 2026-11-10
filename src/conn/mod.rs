@@ -14,11 +14,13 @@
 //! This module is only available on Linux because nftables and
 //! `NETLINK_NETFILTER` are Linux kernel interfaces.
 
+use netlink_packet_core::{DefaultNla, Emitable};
 use netlink_sys::{Socket, SocketAddr, protocols::NETLINK_NETFILTER};
 use std::io;
 
 mod batch;
 mod chains;
+mod rules;
 mod tables;
 
 pub use batch::Batch;
@@ -60,6 +62,9 @@ pub enum ConnError {
 
     #[error("invalid chain: {0}")]
     InvalidChain(&'static str),
+
+    #[error("invalid rule: {0}")]
+    InvalidRule(&'static str),
 }
 
 /// Socket operations needed for nftables
@@ -115,6 +120,20 @@ impl Conn<Socket> {
             sequence: 0,
         })
     }
+}
+
+/// Converts a string into null-terminated bytes without validating it.
+fn nul_terminated(value: &str) -> Vec<u8> {
+    let mut bytes = value.as_bytes().to_vec();
+    bytes.push(0);
+    bytes
+}
+
+/// Serializes Netlink attributes, including alignment padding.
+fn encode_attributes(attributes: &[DefaultNla]) -> Vec<u8> {
+    let mut bytes = vec![0; attributes.buffer_len()];
+    attributes.emit(&mut bytes);
+    bytes
 }
 
 #[cfg(test)]
