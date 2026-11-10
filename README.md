@@ -68,6 +68,48 @@ fn main() -> Result<(), ConnError> {
 }
 ```
 
+### Add rules
+
+Create a dormant table, a regular chain, and a rule in one transaction.
+The rule counts packets before issuing an accept verdict.
+
+```rust
+use nftables_nl::chain::Chain;
+use nftables_nl::rule::{Rule, Verdict};
+use nftables_nl::{Conn, ConnError, Table, TableFamily, TableFlags};
+
+fn main() -> Result<(), ConnError> {
+    let mut conn = Conn::new()?;
+    let table = Table {
+        name: "filter".into(),
+        family: TableFamily::INET,
+        flags: TableFlags::DORMANT,
+        use_count: 0,
+        owner: None,
+    };
+    let chain = Chain {
+        name: "services".into(),
+        table: table.clone(),
+        hooknum: None,
+        priority: None,
+        chain_type: None,
+        policy: None,
+        device: None,
+    };
+    let rule = Rule::new(&chain).counter().verdict(Verdict::Accept);
+
+    let mut batch = conn.batch();
+    batch.add_table(&table)?;
+    batch.add_chain(&chain)?;
+    batch.add_rule(&rule)?;
+    batch.commit()?;
+
+    Ok(())
+}
+```
+
+Each run appends a new rule. This regular chain has no hook attachment, and the
+table is dormant, so the example does not enable packet processing.
 For more usage examples, see the [examples directory](examples).
 
 Integration tests run on GitHub-hosted Ubuntu 24.04 and 26.04 runners on x86-64 and ARM64,
@@ -86,6 +128,8 @@ The Netlink crates from the [rust-netlink](https://github.com/rust-netlink) proj
 The [Google nftables](https://github.com/google/nftables) API was a design reference for modeling the APIs,
 closely alongside the Linux kernel UAPI headers.
 Massive thanks to both projects!
+
+[OpenAI Codex](https://openai.com/codex/) assisted with implementation, testing, and documentation.
 
 ## Maintainer
 

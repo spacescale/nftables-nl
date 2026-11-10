@@ -1,11 +1,11 @@
 //! Chain operations and their Netfilter Netlink encoding.
 
-use super::{ConnError, Transport};
+use super::{ConnError, Transport, encode_attributes, nul_terminated};
 use crate::chain::{Chain, ChainHook};
 use crate::types::{NfGenMsg, NftMessage, NftMsgType};
 use crate::{Batch, TableFamily};
 use netlink_packet_core::{
-    DefaultNla, Emitable, NLA_F_NESTED, NLM_F_CREATE, NLM_F_REQUEST, NetlinkHeader, NetlinkMessage, NetlinkPayload,
+    DefaultNla, NLA_F_NESTED, NLM_F_CREATE, NLM_F_REQUEST, NetlinkHeader, NetlinkMessage, NetlinkPayload,
 };
 
 // Attribute identifiers from the Linux nftables UAPI:
@@ -102,10 +102,7 @@ impl<'a, T: Transport> Batch<'a, T> {
 
         let mut data = nfgen.encode().to_vec();
 
-        let start = data.len();
-        data.resize(start + attributes.as_slice().buffer_len(), 0);
-        // Encode the attributes into the reserved space.
-        attributes.as_slice().emit(&mut data[start..]);
+        data.extend_from_slice(&encode_attributes(&attributes));
 
         let payload = NftMessage {
             message_type: NftMsgType::NEW_CHAIN.header_type(),
@@ -190,13 +187,6 @@ fn validate_chain(chain: &Chain) -> Result<(), ConnError> {
     Ok(())
 }
 
-/// Converts a string into bytes with a terminating zero.
-fn nul_terminated(value: &str) -> Vec<u8> {
-    let mut bytes = value.as_bytes().to_vec();
-    bytes.push(0);
-    bytes
-}
-
 /// Builds the attributes describing a regular or base chain.
 ///
 /// Attribute definitions:
@@ -224,8 +214,7 @@ fn chain_attributes(chain: &Chain) -> Vec<DefaultNla> {
         }
 
         // Encode the inner attributes into their own buffer.
-        let mut hook_data = vec![0; hook_attributes.as_slice().buffer_len()];
-        hook_attributes.as_slice().emit(&mut hook_data);
+        let hook_data = encode_attributes(&hook_attributes);
 
         // NFTA_CHAIN_HOOK = 4.
         // NLA_F_NESTED marks its contents as more attributes.
@@ -252,6 +241,7 @@ mod tests {
     use crate::chain::{ChainPolicy, ChainPriority, ChainType};
     use crate::netlink::decode_messages;
     use crate::{Table, TableFlags};
+    use netlink_packet_core::Emitable;
     use netlink_sys::SocketAddr;
     use std::collections::VecDeque;
     use std::io;

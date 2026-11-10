@@ -1,13 +1,12 @@
 //! Table operations and their Netfilter Netlink encoding.
 
-use super::{Conn, ConnError, Transport};
+use super::{Conn, ConnError, Transport, encode_attributes, nul_terminated};
 use crate::Batch;
 use crate::netlink::decode_messages;
 use crate::table::{Table, TableFamily};
 use crate::types::{NfGenMsg, NftMessage, NftMsgType};
 use netlink_packet_core::{
-    DefaultNla, Emitable, NLM_F_CREATE, NLM_F_DUMP, NLM_F_DUMP_INTR, NLM_F_REQUEST, NetlinkHeader, NetlinkMessage,
-    NetlinkPayload,
+    DefaultNla, NLM_F_CREATE, NLM_F_DUMP, NLM_F_DUMP_INTR, NLM_F_REQUEST, NetlinkHeader, NetlinkMessage, NetlinkPayload,
 };
 use std::io;
 
@@ -90,27 +89,15 @@ impl<'a, T: Transport> Batch<'a, T> {
             res_id: 0,
         };
 
-        // Convert the name to owned bytes and add its terminator.
-        let mut name = table.name.as_bytes().to_vec();
-        name.push(0);
-
         let attributes = [
-            DefaultNla::new(1, name),
+            DefaultNla::new(1, nul_terminated(&table.name)),
             DefaultNla::new(2, table.flags.as_raw().to_be_bytes().to_vec()),
         ];
 
         // Start the payload with the four-byte family header.
         let mut data = nfgen.encode().to_vec();
 
-        // Remember where the attributes should begin.
-        let start = data.len();
-
-        // Make room for the encoded attributes, including their padding.
-        let attributes_len = attributes.as_slice().buffer_len();
-        data.resize(start + attributes_len, 0);
-
-        // Write the attributes into that space.
-        attributes.as_slice().emit(&mut data[start..]);
+        data.extend_from_slice(&encode_attributes(&attributes));
 
         let payload = NftMessage {
             message_type: NftMsgType::NEW_TABLE.header_type(),
