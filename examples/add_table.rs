@@ -5,13 +5,7 @@ fn main() -> Result<(), nftables_nl::ConnError> {
     use nftables_nl::{Conn, Table, TableFamily, TableFlags};
 
     let mut conn = Conn::new()?;
-    let table = Table {
-        name: "nftables_nl_example".into(),
-        family: TableFamily::INET,
-        flags: TableFlags::DORMANT, // Disable packet processing for this table.
-        use_count: 0,
-        owner: None,
-    };
+    let table = Table::new("nftables_nl_example", TableFamily::INET).with_flags(TableFlags::DORMANT);
 
     let mut batch = conn.batch();
     batch.add_table(&table)?; // Validate and queue without sending.

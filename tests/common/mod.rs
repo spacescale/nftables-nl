@@ -40,13 +40,7 @@ pub(super) fn in_network_namespace(test_name: &str, test_body: impl FnOnce()) {
 }
 
 pub(super) fn test_table(name: &str, family: TableFamily) -> Table {
-    Table {
-        name: name.into(),
-        family,
-        flags: TableFlags::DORMANT,
-        use_count: 0,
-        owner: None,
-    }
+    Table::new(name, family).with_flags(TableFlags::DORMANT)
 }
 
 // Runs nft inside the test's isolated network namespace.

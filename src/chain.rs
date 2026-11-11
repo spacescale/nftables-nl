@@ -188,23 +188,16 @@ impl ChainPolicy {
 /// use nftables_nl::chain::{Chain, ChainHook, ChainPolicy, ChainPriority, ChainType};
 /// use nftables_nl::table::{Table, TableFamily, TableFlags};
 ///
-/// let table = Table {
-///     name: "filter".into(),
-///     use_count: 0,
-///     flags: TableFlags::DORMANT,
-///     owner: None,
-///     family: TableFamily::INET
-/// };
+/// let table = Table::new("filter", TableFamily::INET)
+///     .with_flags(TableFlags::DORMANT);
 ///
-/// let chain = Chain {
-///     name: "input".into(),
-///     table,
-///     hooknum: Some(ChainHook::INPUT),
-///     priority: Some(ChainPriority::FILTER),
-///     chain_type: Some(ChainType::FILTER),
-///     policy: Some(ChainPolicy::ACCEPT),
-///     device: None,
-/// };
+/// let chain = Chain::base(
+///     "input",
+///     &table,
+///     ChainHook::INPUT,
+///     ChainPriority::FILTER,
+///     ChainType::FILTER,
+/// ).with_policy(ChainPolicy::ACCEPT);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chain {
@@ -215,4 +208,156 @@ pub struct Chain {
     pub chain_type: Option<ChainType>,
     pub policy: Option<ChainPolicy>,
     pub device: Option<String>,
+}
+
+impl Chain {
+    /// Describes a regular chain with no hook, priority, type, policy, or device.
+    ///
+    /// The table is cloned into the chain, so the chain does not borrow it.
+    /// No kernel I/O is performed. The table must already exist or be queued
+    /// earlier in the same batch when this chain is added.
+    ///
+    /// ```
+    /// use nftables_nl::chain::Chain;
+    /// use nftables_nl::{Table, TableFamily};
+    ///
+    /// let table = Table::new("filter", TableFamily::INET);
+    /// let chain = Chain::new("services", &table);
+    /// assert_eq!(chain.name, "services");
+    /// assert!(chain.hooknum.is_none());
+    /// ```
+    pub fn new(name: impl Into<String>, table: &Table) -> Self {
+        Self {
+            name: name.into(),
+            table: table.clone(),
+            hooknum: None,
+            priority: None,
+            chain_type: None,
+            policy: None,
+            device: None,
+        }
+    }
+
+    /// Describes a base chain with its required hook, priority, and type.
+    ///
+    /// Policy and device are omitted. The kernel defaults an omitted policy
+    /// to accept. Use [`with_policy`](Self::with_policy) or
+    /// [`with_device`](Self::with_device) to configure them explicitly.
+    /// Construction performs no I/O. Options are validated when the chain is
+    /// queued with `Batch::add_chain`, with kernel-specific checks at commit.
+    ///
+    /// ```
+    /// use nftables_nl::chain::{Chain, ChainHook, ChainPriority, ChainType};
+    /// use nftables_nl::{Table, TableFamily};
+    ///
+    /// let table = Table::new("filter", TableFamily::INET);
+    /// let chain = Chain::base(
+    ///     "input", &table, ChainHook::INPUT,
+    ///     ChainPriority::FILTER, ChainType::FILTER,
+    /// );
+    /// assert_eq!(chain.hooknum, Some(ChainHook::INPUT));
+    /// ```
+    pub fn base(
+        name: impl Into<String>,
+        table: &Table,
+        hook: ChainHook,
+        priority: ChainPriority,
+        chain_type: ChainType,
+    ) -> Self {
+        Self {
+            hooknum: Some(hook),
+            priority: Some(priority),
+            chain_type: Some(chain_type),
+            ..Self::new(name, table)
+        }
+    }
+
+    /// Sets the base-chain policy, replacing any previously selected policy.
+    ///
+    /// Setting a policy on a regular chain is rejected by `Batch::add_chain`.
+    #[must_use]
+    pub fn with_policy(mut self, policy: ChainPolicy) -> Self {
+        self.policy = Some(policy);
+        self
+    }
+
+    /// Sets the base-chain device, replacing any previously selected device.
+    ///
+    /// The name and its compatibility with the family and hook are validated
+    /// by `Batch::add_chain`.
+    #[must_use]
+    pub fn with_device(mut self, device: impl Into<String>) -> Self {
+        self.device = Some(device.into());
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{TableFamily, TableFlags};
+
+    #[test]
+    fn chain_new_sets_regular_chain_defaults() {
+        let table = Table::new("filter", TableFamily::INET).with_flags(TableFlags::DORMANT);
+        let chain = Chain::new("services", &table);
+        assert_eq!(chain.name, "services");
+        assert_eq!(chain.table, table);
+        assert_eq!(chain.hooknum, None);
+        assert_eq!(chain.priority, None);
+        assert_eq!(chain.chain_type, None);
+        assert_eq!(chain.policy, None);
+        assert_eq!(chain.device, None);
+    }
+
+    #[test]
+    fn chain_new_owns_an_independent_table_after_parent_is_dropped() {
+        let chain = {
+            let mut table = Table::new("filter", TableFamily::IPV6);
+            let chain = Chain::new(String::from("services"), &table);
+            table.name = "changed".into();
+            table.flags = TableFlags::DORMANT;
+            chain
+        };
+        assert_eq!(chain.name, "services");
+        assert_eq!(chain.table.name, "filter");
+        assert_eq!(chain.table.family, TableFamily::IPV6);
+        assert_eq!(chain.table.flags.as_raw(), 0);
+    }
+
+    #[test]
+    fn chain_base_sets_required_options_and_omits_policy_and_device() {
+        let table = Table::new("filter", TableFamily::INET);
+        let chain = Chain::base("input", &table, ChainHook::INPUT, ChainPriority::RAW, ChainType::FILTER);
+        assert_eq!(chain.name, "input");
+        assert_eq!(chain.table, table);
+        assert_eq!(chain.hooknum, Some(ChainHook::INPUT));
+        assert_eq!(chain.priority, Some(ChainPriority::RAW));
+        assert_eq!(chain.chain_type, Some(ChainType::FILTER));
+        assert_eq!(chain.policy, None);
+        assert_eq!(chain.device, None);
+    }
+
+    #[test]
+    fn chain_with_policy_and_device_replace_options_and_preserve_base_settings() {
+        let table = Table::new("netdev_filter", TableFamily::NETDEV);
+        let chain = Chain::base(
+            "ingress",
+            &table,
+            ChainHook::INGRESS,
+            ChainPriority::FILTER,
+            ChainType::FILTER,
+        )
+        .with_policy(ChainPolicy::ACCEPT)
+        .with_device("eth0")
+        .with_policy(ChainPolicy::DROP)
+        .with_device(String::from("eth1"));
+        assert_eq!(chain.policy, Some(ChainPolicy::DROP));
+        assert_eq!(chain.device.as_deref(), Some("eth1"));
+        assert_eq!(chain.name, "ingress");
+        assert_eq!(chain.table, table);
+        assert_eq!(chain.hooknum, Some(ChainHook::INGRESS));
+        assert_eq!(chain.priority, Some(ChainPriority::FILTER));
+        assert_eq!(chain.chain_type, Some(ChainType::FILTER));
+    }
 }

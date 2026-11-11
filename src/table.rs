@@ -14,6 +14,7 @@ pub enum TableDecodeError {
     Attribute(#[source] netlink_packet_core::DecodeError),
 }
 
+/// An nftables table and its configuration or observed kernel state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Table {
     pub name: String,
@@ -24,6 +25,45 @@ pub struct Table {
 }
 
 impl Table {
+    /// Describes a table with no flags, zero use count, and no owner.
+    ///
+    /// With no flags, the table is active when created. Use
+    /// [`with_flags`](Self::with_flags) to request a dormant table instead.
+    /// This constructor performs no kernel I/O. Names and family are validated
+    /// when the table is queued with `Batch::add_table`.
+    ///
+    /// ```
+    /// use nftables_nl::{Table, TableFamily};
+    ///
+    /// let table = Table::new("filter", TableFamily::INET);
+    /// assert_eq!(table.name, "filter");
+    /// assert_eq!(table.flags.as_raw(), 0);
+    /// ```
+    pub fn new(name: impl Into<String>, family: TableFamily) -> Self {
+        Self {
+            name: name.into(),
+            family,
+            flags: TableFlags::default(),
+            use_count: 0,
+            owner: None,
+        }
+    }
+
+    /// Sets the table flags, replacing any previously selected flags.
+    ///
+    /// ```
+    /// use nftables_nl::{Table, TableFamily, TableFlags};
+    ///
+    /// let table = Table::new("filter", TableFamily::INET)
+    ///     .with_flags(TableFlags::DORMANT | TableFlags::OWNER);
+    /// assert_eq!(table.flags, TableFlags::DORMANT | TableFlags::OWNER);
+    /// ```
+    #[must_use]
+    pub fn with_flags(mut self, flags: TableFlags) -> Self {
+        self.flags = flags;
+        self
+    }
+
     /// Decodes an nftables table from a Netfilter Netlink message.
     ///
     /// Expects the message payload to contain a four-byte `nfgenmsg` header,
@@ -161,8 +201,9 @@ impl TableFamily {
 ///
 /// In the kernel UAPI, they are defined by `enum nft_table_flags` and are
 /// encoded as a bitmask in the `NFTA_TABLE_FLAGS` Netlink attribute.
+/// The default value has no flags set.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct TableFlags(u32);
 
 impl TableFlags {
@@ -197,6 +238,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn table_new_sets_creation_defaults() {
+        let table = Table::new("filter", TableFamily::INET);
+        assert_eq!(table.name, "filter");
+        assert_eq!(table.family, TableFamily::INET);
+        assert_eq!(table.flags.as_raw(), 0);
+        assert_eq!(table.use_count, 0);
+        assert_eq!(table.owner, None);
+    }
+
+    #[test]
+    fn table_new_accepts_owned_names_and_each_family() {
+        for family in [
+            TableFamily::INET,
+            TableFamily::IPV4,
+            TableFamily::IPV6,
+            TableFamily::NETDEV,
+        ] {
+            let table = Table::new(String::from("owned_name"), family);
+            assert_eq!(table.name, "owned_name");
+            assert_eq!(table.family, family);
+        }
+    }
+
+    #[test]
+    fn table_with_flags_replaces_flags_without_changing_other_fields() {
+        let table = Table::new("filter", TableFamily::IPV6)
+            .with_flags(TableFlags::DORMANT | TableFlags::OWNER)
+            .with_flags(TableFlags::PERSIST);
+        assert_eq!(table.flags, TableFlags::PERSIST);
+        assert_eq!(table.name, "filter");
+        assert_eq!(table.family, TableFamily::IPV6);
+        assert_eq!(table.use_count, 0);
+        assert_eq!(table.owner, None);
+        assert_eq!(table.with_flags(TableFlags::default()).flags.as_raw(), 0);
+    }
+
+    #[test]
     fn raw_families_match_netfilter_values() {
         // NFPROTO_* values are not consecutive: preserve the ABI gaps.
         let cases = [
@@ -216,6 +294,7 @@ mod tests {
 
     #[test]
     fn raw_flags_preserve_individual_and_combined_bits() {
+        assert_eq!(TableFlags::default().as_raw(), 0);
         assert_eq!(TableFlags::DORMANT.as_raw(), 0x1);
         assert_eq!(TableFlags::OWNER.as_raw(), 0x2);
         assert_eq!(TableFlags::PERSIST.as_raw(), 0x4);

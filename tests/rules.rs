@@ -8,15 +8,7 @@ use nftables_nl::rule::{Expression, Rule, Verdict};
 use nftables_nl::{Conn, ConnError, TableFamily};
 
 fn regular_chain(table: &str, name: &str) -> Chain {
-    Chain {
-        name: name.into(),
-        table: test_table(table, TableFamily::INET),
-        hooknum: None,
-        priority: None,
-        chain_type: None,
-        policy: None,
-        device: None,
-    }
+    Chain::new(name, &test_table(table, TableFamily::INET))
 }
 
 #[test]

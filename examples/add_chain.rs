@@ -10,35 +10,20 @@ fn main() -> Result<(), ConnError> {
 
     let mut conn = Conn::new()?;
 
-    let table = Table {
-        name: "nftables_nl_chain_example".into(),
-        family: TableFamily::INET,
-        flags: TableFlags::DORMANT, // Disable packet processing for this table.
-        use_count: 0,
-        owner: None,
-    };
+    let table = Table::new("nftables_nl_chain_example", TableFamily::INET).with_flags(TableFlags::DORMANT);
 
     // A base chain attached to the INPUT hook
-    let input = Chain {
-        name: "input".into(),
-        table: table.clone(),
-        hooknum: Some(ChainHook::INPUT),
-        priority: Some(ChainPriority::FILTER),
-        chain_type: Some(ChainType::FILTER),
-        policy: Some(ChainPolicy::ACCEPT),
-        device: None,
-    };
+    let input = Chain::base(
+        "input",
+        &table,
+        ChainHook::INPUT,
+        ChainPriority::FILTER,
+        ChainType::FILTER,
+    )
+    .with_policy(ChainPolicy::ACCEPT);
 
     // A regular chain, with no hook attachment.
-    let services = Chain {
-        name: "services".into(),
-        table: table.clone(),
-        hooknum: None,
-        priority: None,
-        chain_type: None,
-        policy: None,
-        device: None,
-    };
+    let services = Chain::new("services", &table);
 
     let mut batch = conn.batch();
     // Queue the table before the chains that belong to it.

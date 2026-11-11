@@ -51,13 +51,8 @@ impl<'a, T: Transport> Batch<'a, T> {
     /// use nftables_nl::{Conn, Table, TableFamily, TableFlags};
     ///
     /// let mut conn = Conn::new()?;
-    /// let table = Table {
-    ///     name: "filter".into(),
-    ///     family: TableFamily::INET,
-    ///     flags: TableFlags::DORMANT,
-    ///     use_count: 0,
-    ///     owner: None,
-    /// };
+    /// let table = Table::new("filter", TableFamily::INET)
+    ///     .with_flags(TableFlags::DORMANT);
     ///
     /// let mut batch = conn.batch();
     /// batch.add_table(&table)?; // Queue the operation locally.
@@ -269,13 +264,7 @@ mod tests {
     }
 
     fn table_for_add(name: &str) -> Table {
-        Table {
-            name: name.into(),
-            family: TableFamily::INET,
-            flags: TableFlags::DORMANT,
-            use_count: 0,
-            owner: None,
-        }
+        Table::new(name, TableFamily::INET).with_flags(TableFlags::DORMANT)
     }
 
     /// Successful kernel acknowledgement for a particular request.

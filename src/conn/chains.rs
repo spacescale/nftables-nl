@@ -58,22 +58,9 @@ impl<'a, T: Transport> Batch<'a, T> {
     /// use nftables_nl::{Conn, ConnError, Table, TableFamily, TableFlags};
     ///
     /// let mut conn = Conn::new()?;
-    /// let table = Table {
-    ///     name: "filter".into(),
-    ///     family: TableFamily::INET,
-    ///     flags: TableFlags::DORMANT,
-    ///     use_count: 0,
-    ///     owner: None,
-    /// };
-    /// let chain = Chain {
-    ///     name: "services".into(),
-    ///     table: table.clone(),
-    ///     hooknum: None,
-    ///     priority: None,
-    ///     chain_type: None,
-    ///     policy: None,
-    ///     device: None,
-    /// };
+    /// let table = Table::new("filter", TableFamily::INET)
+    ///     .with_flags(TableFlags::DORMANT);
+    /// let chain = Chain::new("services", &table);
     ///
     /// let mut batch = conn.batch();
     /// batch.add_table(&table)?;
@@ -293,30 +280,19 @@ mod tests {
     }
 
     fn regular_chain() -> Chain {
-        Chain {
-            name: "input".into(),
-            table: Table {
-                name: "filter".into(),
-                family: TableFamily::INET,
-                flags: TableFlags::DORMANT,
-                use_count: 0,
-                owner: None,
-            },
-            hooknum: None,
-            priority: None,
-            chain_type: None,
-            policy: None,
-            device: None,
-        }
+        let table = Table::new("filter", TableFamily::INET).with_flags(TableFlags::DORMANT);
+        Chain::new("input", &table)
     }
 
     fn base_chain() -> Chain {
-        Chain {
-            hooknum: Some(ChainHook::INPUT),
-            priority: Some(ChainPriority::FILTER),
-            chain_type: Some(ChainType::FILTER),
-            ..regular_chain()
-        }
+        let table = regular_chain().table;
+        Chain::base(
+            "input",
+            &table,
+            ChainHook::INPUT,
+            ChainPriority::FILTER,
+            ChainType::FILTER,
+        )
     }
 
     // Build expected wire bytes independently of DefaultNla and emit.
