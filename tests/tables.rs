@@ -3,7 +3,7 @@
 mod common;
 
 use common::{in_network_namespace, nft, test_table};
-use nftables_nl::{Conn, ConnError, TableFamily, TableFlags};
+use nftables_nl::{Conn, ConnError, Table, TableFamily, TableFlags};
 use std::process::Command;
 
 #[test]
@@ -83,6 +83,30 @@ fn add_table_creates_table() {
 
         // Independent confirmation through the nft CLI.
         nft(&["list", "table", "inet", "creation_test"]);
+    });
+}
+
+#[test]
+#[ignore = "requires namespace privileges, nft, unshare, and timeout"]
+fn add_table_constructor_defaults_create_active_table() {
+    in_network_namespace("add_table_constructor_defaults_create_active_table", || {
+        let table = Table::new("active_table", TableFamily::INET);
+        let mut conn = Conn::new().expect("open connection");
+        let mut batch = conn.batch();
+        batch.add_table(&table).expect("queue table with default flags");
+        batch.commit().expect("create active table");
+
+        let tables = conn.list_tables().expect("read created table");
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].name, table.name);
+        assert_eq!(tables[0].flags.as_raw(), 0);
+        assert_eq!(tables[0].use_count, 0);
+        assert_eq!(tables[0].owner, None);
+        let actual = nft(&["list", "table", "inet", &table.name]);
+        assert!(
+            !actual.contains("flags dormant"),
+            "default table must be active: {actual}"
+        );
     });
 }
 

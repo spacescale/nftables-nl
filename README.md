@@ -52,13 +52,8 @@ use nftables_nl::{Conn, ConnError, Table, TableFamily, TableFlags};
 
 fn main() -> Result<(), ConnError> {
     let mut conn = Conn::new()?;
-    let table = Table {
-        name: "filter".into(),
-        family: TableFamily::INET,
-        flags: TableFlags::DORMANT, // Disable packet processing for this table.
-        use_count: 0,
-        owner: None,
-    };
+    let table = Table::new("filter", TableFamily::INET)
+        .with_flags(TableFlags::DORMANT);
 
     let mut batch = conn.batch();
     batch.add_table(&table)?; // Validate and queue the operation.
@@ -67,6 +62,32 @@ fn main() -> Result<(), ConnError> {
     Ok(())
 }
 ```
+
+### Build chains
+
+Use `Chain::new` for a regular chain or `Chain::base` for a base chain.
+The chain owns a copy of its table configuration.
+
+```rust
+use nftables_nl::chain::{Chain, ChainHook, ChainPolicy, ChainPriority, ChainType};
+use nftables_nl::{Table, TableFamily};
+
+let table = Table::new("filter", TableFamily::INET);
+let services = Chain::new("services", &table);
+let input = Chain::base(
+    "input",
+    &table,
+    ChainHook::INPUT,
+    ChainPriority::FILTER,
+    ChainType::FILTER,
+)
+.with_policy(ChainPolicy::ACCEPT);
+```
+
+Constructors describe objects locally. Queue chains with `batch.add_chain(&chain)`
+after their table exists or has been queued in the same batch. `Table::new` uses
+no flags by default, so the examples that disable packet processing select
+`TableFlags::DORMANT` explicitly. For device-bound base chains, use `.with_device("eth0")`.
 
 ### Add rules
 
@@ -80,22 +101,9 @@ use nftables_nl::{Conn, ConnError, Table, TableFamily, TableFlags};
 
 fn main() -> Result<(), ConnError> {
     let mut conn = Conn::new()?;
-    let table = Table {
-        name: "filter".into(),
-        family: TableFamily::INET,
-        flags: TableFlags::DORMANT,
-        use_count: 0,
-        owner: None,
-    };
-    let chain = Chain {
-        name: "services".into(),
-        table: table.clone(),
-        hooknum: None,
-        priority: None,
-        chain_type: None,
-        policy: None,
-        device: None,
-    };
+    let table = Table::new("filter", TableFamily::INET)
+        .with_flags(TableFlags::DORMANT);
+    let chain = Chain::new("services", &table);
     let rule = Rule::new(&chain).counter().verdict(Verdict::Accept);
 
     let mut batch = conn.batch();

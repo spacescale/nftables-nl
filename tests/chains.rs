@@ -7,15 +7,7 @@ use nftables_nl::chain::{Chain, ChainHook, ChainPolicy, ChainPriority, ChainType
 use nftables_nl::{Conn, ConnError, Table, TableFamily};
 
 fn regular_chain(name: &str, table: &Table) -> Chain {
-    Chain {
-        name: name.into(),
-        table: table.clone(),
-        hooknum: None,
-        priority: None,
-        chain_type: None,
-        policy: None,
-        device: None,
-    }
+    Chain::new(name, table)
 }
 
 #[test]
@@ -86,13 +78,10 @@ fn add_chain_creates_base_chain() {
                 "type nat hook prerouting priority -100; policy accept;",
             ),
         ] {
-            let chain = Chain {
-                hooknum: Some(hook),
-                priority: Some(priority),
-                chain_type: Some(chain_type),
-                policy,
-                ..regular_chain(name, &table)
-            };
+            let mut chain = Chain::base(name, &table, hook, priority, chain_type);
+            if let Some(policy) = policy {
+                chain = chain.with_policy(policy);
+            }
             let mut batch = conn.batch();
             batch.add_chain(&chain).expect("queue base chain");
             batch.commit().expect("commit base chain");
@@ -117,14 +106,9 @@ fn add_chain_creates_device_bound_chain() {
             let table_name = format!("device_{family_name}_{hook_name}");
             nft(&["add", "table", family_name, &table_name]);
             let table = test_table(&table_name, family);
-            let chain = Chain {
-                hooknum: Some(hook),
-                priority: Some(ChainPriority::FILTER),
-                chain_type: Some(ChainType::FILTER),
-                policy: Some(ChainPolicy::ACCEPT),
-                device: Some("lo".into()),
-                ..regular_chain("device_chain", &table)
-            };
+            let chain = Chain::base("device_chain", &table, hook, ChainPriority::FILTER, ChainType::FILTER)
+                .with_policy(ChainPolicy::ACCEPT)
+                .with_device("lo");
 
             let mut conn = Conn::new().expect("open connection");
             let mut batch = conn.batch();
@@ -148,13 +132,14 @@ fn add_chain_creates_table_and_chain_in_one_batch() {
     in_network_namespace("add_chain_creates_table_and_chain_in_one_batch", || {
         let table = test_table("table_and_chains", TableFamily::INET);
         let regular = regular_chain("services", &table);
-        let base = Chain {
-            hooknum: Some(ChainHook::INPUT),
-            priority: Some(ChainPriority::FILTER),
-            chain_type: Some(ChainType::FILTER),
-            policy: Some(ChainPolicy::ACCEPT),
-            ..regular_chain("input", &table)
-        };
+        let base = Chain::base(
+            "input",
+            &table,
+            ChainHook::INPUT,
+            ChainPriority::FILTER,
+            ChainType::FILTER,
+        )
+        .with_policy(ChainPolicy::ACCEPT);
 
         let mut conn = Conn::new().expect("open connection");
         let mut batch = conn.batch();
@@ -185,13 +170,14 @@ fn add_chain_preserves_existing_rules() {
         nft(&["add", "table", "inet", "repeat_chain_test"]);
         let table = test_table("repeat_chain_test", TableFamily::INET);
         let regular = regular_chain("services", &table);
-        let base = Chain {
-            hooknum: Some(ChainHook::INPUT),
-            priority: Some(ChainPriority::FILTER),
-            chain_type: Some(ChainType::FILTER),
-            policy: Some(ChainPolicy::ACCEPT),
-            ..regular_chain("input", &table)
-        };
+        let base = Chain::base(
+            "input",
+            &table,
+            ChainHook::INPUT,
+            ChainPriority::FILTER,
+            ChainType::FILTER,
+        )
+        .with_policy(ChainPolicy::ACCEPT);
         let mut conn = Conn::new().expect("open connection");
 
         for chain in [regular, base] {
